@@ -1,7 +1,7 @@
 {
-    "prompt": "A young woman with short brown hair wearing a white shirt, looking slightly to the right. She has blue eyes, red lipstick, and gold earrings, standing against a green background. Eyes keep looking right, mouth opens moderately and naturally, body stays completely still, only lips move while speaking.",
-    "cond_image": "/root/MultiTalk/girl_green/3.png",
+    "prompt": "A blonde woman with her hair tied back, wearing a white shirt, standing against a green background. She has blue eyes, red lipstick, and looks directly at the camera with a calm expression. Her eyes keep looking forward, mouth opens moderately and naturally, body stays completely still, only lips move while speaking.",
+    "cond_image": "/workspace/multitalk_verquant/caroline_green/4b1.png",
     "cond_audio": {
-        "person1": "audio/german_5s.wav"
+        "person1": "/workspace/multitalk_verquant/audio/folie_2_alterative_trimmed.wav"
     }
 }
