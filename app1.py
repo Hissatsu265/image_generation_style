@@ -3,6 +3,8 @@ import argparse
 import logging
 import os
 os.environ["no_proxy"] = "localhost,127.0.0.1,::1"
+from divide_audio import process_audio_file
+
 import sys
 import json
 import warnings
@@ -763,10 +765,23 @@ def run_graio_demo(args):
             print(f"Image: {user_input['image_path']}")
             print(f"Prompt: {user_input['prompt']}")
             
-            output_file = generate_video_from_inputs(**user_input)
-            
+# =================================================================================
+            if user_input.get('mode') == 'single_file':
+                output_paths, success = check_and_process_audio(user_input)
+    
+                if success and output_paths:
+                    print("Hoàn thành xử lý audio!")
+                    for path in output_paths:
+                        print(f"tạo video cho audio : {path}")
+                        user_input['audio_path_1'] = path
+                        output_file = generate_video_from_inputs(**user_input)
+                        del_file(path)
+                        
+                else:
+                    output_file = generate_video_from_inputs(**user_input)
+ # =====================================================================================
+            # output_file = generate_video_from_inputs(**user_input)  
             print(f"\n✅ Video generated successfully: {output_file}")
-            
             continue_choice = input("\nGenerate another video? (y/n): ").strip().lower()
             if continue_choice != 'y':
                 print("Goodbye!")
@@ -782,8 +797,44 @@ def run_graio_demo(args):
             retry = input("Try again? (y/n): ").strip().lower()
             if retry != 'y':
                 break
-
-
+def check_and_process_audio(user_input):
+    if user_input.get('mode') == 'single_file':
+        audio_path = user_input.get('audio_path_1') or user_input.get('audio_path_2')
+        if audio_path and os.path.exists(audio_path):
+            try:
+                duration = librosa.get_duration(filename=audio_path)
+                print(f"Thời lượng file audio: {duration:.2f} giây")
+                if duration > 14:
+                    print("File audio dài hơn 14 giây, tiến hành cắt audio...")
+                    output_directory = "output_segments"
+                    os.makedirs(output_directory, exist_ok=True)
+                    output_paths, result = process_audio_file(audio_path, output_directory)
+                    if result:
+                        print("Xử lý thành công!")
+                        for path in output_paths:
+                            print(f"Đã lưu file: {path}")
+                        return output_paths, True
+                    else:
+                        print("Có lỗi xảy ra khi xử lý file.")
+                        return None, False
+                else:
+                    print("File audio ngắn hơn 14 giây, không cần cắt.")
+                    return [audio_path], True
+            except Exception as e:
+                print(f"Lỗi khi đọc file audio: {e}")
+                return None, False
+        else:
+            print("Không tìm thấy đường dẫn audio hoặc file không tồn tại.")
+            return None, False
+    else:
+        print("Mode không phải là 'single_file', không xử lý.")
+        return None, False
+def del_file(file_path):
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"Đã xóa file: {file_path}")
+    else:
+        print(f"File không tồn tại: {file_path}")
 if __name__ == "__main__":
     args = _parse_args()
     run_graio_demo(args)
