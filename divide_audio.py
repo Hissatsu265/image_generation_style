@@ -4,17 +4,6 @@ from pydub.silence import detect_silence
 import math
 
 def split_audio_file(input_path, output_dir="output", max_duration=14):
-    """
-    Cắt file audio thành các đoạn nhỏ hơn max_duration giây.
-    
-    Args:
-        input_path (str): Đường dẫn đến file audio đầu vào
-        output_dir (str): Thư mục lưu các file đầu ra
-        max_duration (int): Thời lượng tối đa cho mỗi đoạn (giây)
-    
-    Returns:
-        bool: True nếu thành công, False nếu thất bại
-    """
     try:
         # Tạo thư mục output nếu chưa tồn tại
         if not os.path.exists(output_dir):
@@ -49,11 +38,12 @@ def split_audio_file(input_path, output_dir="output", max_duration=14):
             remaining_audio = current_audio[cut_point:]
             
             # Thêm im lặng 0.2s vào cuối đoạn đầu
-            first_segment_with_silence = first_segment + silence_200ms
+            # first_segment_with_silence = first_segment + silence_200ms
+            first_segment_with_silence = first_segment
             
             # Thêm im lặng 0.2s vào đầu đoạn sau
-            remaining_audio = silence_200ms + remaining_audio
-            
+            # remaining_audio = silence_200ms + remaining_audio
+            remaining_audio = remaining_audio
             # Lưu đoạn đầu
             output_path = os.path.join(output_dir, f"{base_name}_part_{part_number:03d}.mp3")
             first_segment_with_silence.export(output_path, format="mp3")

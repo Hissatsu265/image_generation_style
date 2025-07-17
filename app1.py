@@ -5,6 +5,9 @@ import os
 os.environ["no_proxy"] = "localhost,127.0.0.1,::1"
 from divide_audio import process_audio_file
 
+from merge_video import concat_videos
+from take_lastframe import save_last_frame
+
 import sys
 import json
 import warnings
@@ -503,7 +506,7 @@ def run_graio_demo(args):
     def generate_video_from_inputs(image_path, prompt, audio_path_1, audio_path_2, 
                                   mode, tts_text, resolution, human1_voice, human2_voice,
                                   audio_type='add', sd_steps=8, seed=42, text_guide_scale=1.0, 
-                                  audio_guide_scale=2.0, n_prompt=""):
+                                  audio_guide_scale=2.0, n_prompt="",bbox1=[0, 0, 0, 0], bbox2=[0, 0, 0, 0]):
         """
         Generate video from command line inputs
         """
@@ -523,6 +526,11 @@ def run_graio_demo(args):
             person['person1'] = audio_path_1
             person['person2'] = audio_path_2
             input_data["audio_type"] = audio_type
+            if audio_type == 'add':
+                bbox={}
+                bbox['person1'] = bbox1
+                bbox['person2'] = bbox2
+                input_data["bbox"] = bbox
         elif mode == "multi_tts":
             tts_audio = {}
             tts_audio['text'] = tts_text
@@ -675,7 +683,8 @@ def run_graio_demo(args):
         audio_type = 'add'
         human1_voice = "weights/Kokoro-82M/voices/am_adam.pt"
         human2_voice = "weights/Kokoro-82M/voices/af_heart.pt"
-        
+        bbox1 = [0, 0, 0, 0]  # xmin, ymin, xmax, ymax for person 1
+        bbox2 = [0, 0, 0, 0]  # xmin, ymin, xmax, ymax for person 2
         # Get mode-specific inputs
         if mode == 'single_file':
             audio_path_1 = input("Enter audio file path: ").strip()
@@ -701,7 +710,18 @@ def run_graio_demo(args):
             print("  2. para - Parallel audio")
             type_choice = input("Select type (1-2): ").strip()
             audio_type = 'add' if type_choice == '1' else 'para'
-            
+            if audio_type == 'add':
+                print("Nhập thông tin cho bbox thứ 1 (định dạng: xmin ymin xmax ymax):")
+                bbox1_input = input(">>> ").strip()
+                bbox1 = list(map(int, bbox1_input.split()))
+
+                print("Nhập thông tin cho bbox thứ 2 (định dạng: xmin ymin xmax ymax):")
+                bbox2_input = input(">>> ").strip()
+                bbox2 = list(map(int, bbox2_input.split()))
+
+                print("Bbox 1:", bbox1)
+                print("Bbox 2:", bbox2)
+
         elif mode == 'multi_tts':
             tts_text = input("Enter TTS text (format: (s1) text1 (s2) text2): ").strip()
             voice1_input = input(f"Enter voice path for person 1 (default: {human1_voice}): ").strip()
@@ -746,7 +766,9 @@ def run_graio_demo(args):
             'seed': seed,
             'text_guide_scale': text_guide_scale,
             'audio_guide_scale': audio_guide_scale,
-            'n_prompt': n_prompt
+            'n_prompt': n_prompt,
+            'bbox1': bbox1,
+            'bbox2': bbox2
         }
 
     # Main command line loop
@@ -766,19 +788,36 @@ def run_graio_demo(args):
             print(f"Prompt: {user_input['prompt']}")
             
 # =================================================================================
+
             if user_input.get('mode') == 'single_file':
                 output_paths, success = check_and_process_audio(user_input)
     
                 if success and output_paths:
                     print("Hoàn thành xử lý audio!")
+                    output_files =[]
+                    idx=0
+                    original_audio_path = user_input['audio_path_1']
                     for path in output_paths:
                         print(f"tạo video cho audio : {path}")
                         user_input['audio_path_1'] = path
+                        if idx>0:
+                            user_input['image_path'] = save_last_frame(output_files[idx-1])
+                            print(f"Đã lưu ảnh cuối cùng: {user_input['image_path']}")
                         output_file = generate_video_from_inputs(**user_input)
+                        output_files.append(output_file)                        
+                        del_file(path) 
+                        del_file(user_input['image_path']) 
+                        idx+=1
+                    
+                    output_file1 = concat_videos(output_files, "merged_video_raw.mp4")
+                    for path in output_files:
                         del_file(path)
-                        
+                    from merge_video_audio import replace_audio_trimmed
+                    output_file = replace_audio_trimmed(output_file1,original_audio_path,"merged_video.mp4")
                 else:
                     output_file = generate_video_from_inputs(**user_input)
+            # elif user_input.get('mode') == 'multi_file' and user_input.get('audio_type') == 'add':
+                
  # =====================================================================================
             # output_file = generate_video_from_inputs(**user_input)  
             print(f"\n✅ Video generated successfully: {output_file}")
