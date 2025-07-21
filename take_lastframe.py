@@ -19,5 +19,5 @@ def save_last_frame(video_path: str, output_path: str = "last_frame.jpg") -> str
     cv2.imwrite(output_path, frame)
     cap.release()
     return os.path.abspath(output_path)
-path = save_last_frame("/workspace/multitalk_verquant/d1.mp4")
-print("Saved frame path:", path)
+# path = save_last_frame("/workspace/multitalk_verquant/d1.mp4")
+# print("Saved frame path:", path)

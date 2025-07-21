@@ -7,6 +7,8 @@ from divide_audio import process_audio_file
 
 from merge_video import concat_videos
 from take_lastframe import save_last_frame
+from cut_video import cut_video
+from audio_duration import get_audio_duration
 
 import sys
 import json
@@ -632,9 +634,9 @@ def run_graio_demo(args):
         print("="*60)
         print("Modes:")
         print("  1. single_file    - Single person with audio file")
-        print("  2. single_tts     - Single person with TTS")
-        print("  3. multi_file     - Multiple persons with audio files")
-        print("  4. multi_tts      - Multiple persons with TTS")
+        print("  2. single_tts     - Single person with TTS(long video transitions are not supported)")
+        print("  3. multi_file     - Multiple persons with audio files(almost done)")
+        print("  4. multi_tts      - Multiple persons with TTS(long video transitions are not supported)")
         print("  5. quit          - Exit program")
         print("="*60)
 
@@ -662,12 +664,11 @@ def run_graio_demo(args):
             mode = mode_map[choice]
             break
         
-        image_path = input("Enter image path: ").strip()
-        if not os.path.exists(image_path):
-            print(f"Error: Image path {image_path} does not exist!")
-            return None
+        # image_path = input("Enter image path: ").strip()
+        # if not os.path.exists(image_path):
+        #     print(f"Error: Image path {image_path} does not exist!")
+        #     return None
             
-        prompt = input("Enter prompt: ").strip()
         
         # Get resolution
         print("Resolution options:")
@@ -691,6 +692,9 @@ def run_graio_demo(args):
             if not os.path.exists(audio_path_1):
                 print(f"Error: Audio path {audio_path_1} does not exist!")
                 return None
+            
+                
+
                 
         elif mode == 'single_tts':
             tts_text = input("Enter TTS text: ").strip()
@@ -730,7 +734,38 @@ def run_graio_demo(args):
                 human1_voice = voice1_input
             if voice2_input:
                 human2_voice = voice2_input
-        
+    # =========================================================================
+        list_image_paths = []
+        list_prompt_paths = []
+        image_path=""
+        if mode == 'single_file' and  get_audio_duration(audio_path_1) >14:
+            while True  :
+                print("\nEnter image paths for video generation (type 'quit' to stop):")
+                path = input(f"Enter image path #{len(list_image_paths) + 1}: ").strip()
+                if path.lower() == "quit":
+                    if len(list_image_paths) >= 2:
+                        print("Received 'quit' — stopping input.")
+                        break
+                    else:
+                        print("You need to enter at least 2 image paths before quitting.")
+                        continue
+                if path:
+                    list_image_paths.append(path)
+                    prompt = input("Enter prompt: ").strip()
+                    list_prompt_paths.append(prompt)
+
+                else:
+                    print("Path cannot be empty. Please try again.")
+            print("Image paths received:", list_image_paths)
+        else:
+            image_path = input("Enter image path: ").strip()
+            if not os.path.exists(image_path):
+                print(f"Error: Image path {image_path} does not exist!")
+                return None
+            prompt = input("Enter prompt: ").strip()
+
+
+    # =========================================================================
         # Get advanced options
         advanced = input("Use advanced options? (y/n): ").strip().lower()
         sd_steps = 8
@@ -751,7 +786,7 @@ def run_graio_demo(args):
             except ValueError:
                 print("Invalid input for advanced options. Using defaults.")
         
-        return {
+        return list_image_paths,list_prompt_paths, {
             'image_path': image_path,
             'prompt': prompt,
             'audio_path_1': audio_path_1,
@@ -777,7 +812,7 @@ def run_graio_demo(args):
     
     while True:
         try:
-            user_input = get_user_input()
+            list_image_paths,list_prompt_paths, user_input = get_user_input()
             
             if user_input is None:
                 print("Goodbye!")
@@ -790,7 +825,7 @@ def run_graio_demo(args):
 # =================================================================================
 
             if user_input.get('mode') == 'single_file':
-                output_paths, success = check_and_process_audio(user_input)
+                output_paths, durations, success = check_and_process_audio(user_input)
     
                 if success and output_paths:
                     print("Hoàn thành xử lý audio!")
@@ -800,20 +835,31 @@ def run_graio_demo(args):
                     for path in output_paths:
                         print(f"tạo video cho audio : {path}")
                         user_input['audio_path_1'] = path
-                        if idx>0:
+                        if idx>0 and len(list_image_paths) < 1:
                             user_input['image_path'] = save_last_frame(output_files[idx-1])
                             print(f"Đã lưu ảnh cuối cùng: {user_input['image_path']}")
-                        output_file = generate_video_from_inputs(**user_input)
-                        output_files.append(output_file)                        
+                        if len(list_image_paths) >= 2:
+                            safe_idx = idx % len(list_image_paths)
+                            user_input['image_path'] = list_image_paths[safe_idx]
+                            user_input['prompt'] =  list_prompt_paths[safe_idx] 
+                            print(f"Đang sử dụng ảnh: {user_input['image_path']}")
+                            
+                        output_file_raw = generate_video_from_inputs(**user_input)
+                        output_file=cut_video(output_file_raw, durations[idx]-0.3)
+                        output_files.append(output_file)   
                         del_file(path) 
-                        del_file(user_input['image_path']) 
+                        # del_file(user_input['image_path']) 
+                        del_file(output_file_raw)
                         idx+=1
                     
                     output_file1 = concat_videos(output_files, "merged_video_raw.mp4")
-                    for path in output_files:
-                        del_file(path)
                     from merge_video_audio import replace_audio_trimmed
                     output_file = replace_audio_trimmed(output_file1,original_audio_path,"merged_video.mp4")
+                    for path in list_image_paths:
+                        del_file(path)
+                    for path in output_files:
+                        del_file(path)
+                    del_file(output_file1)
                 else:
                     output_file = generate_video_from_inputs(**user_input)
             # elif user_input.get('mode') == 'multi_file' and user_input.get('audio_type') == 'add':
@@ -847,12 +893,12 @@ def check_and_process_audio(user_input):
                     print("File audio dài hơn 14 giây, tiến hành cắt audio...")
                     output_directory = "output_segments"
                     os.makedirs(output_directory, exist_ok=True)
-                    output_paths, result = process_audio_file(audio_path, output_directory)
+                    output_paths,durations, result = process_audio_file(audio_path, output_directory)
                     if result:
                         print("Xử lý thành công!")
                         for path in output_paths:
                             print(f"Đã lưu file: {path}")
-                        return output_paths, True
+                        return output_paths,durations, True
                     else:
                         print("Có lỗi xảy ra khi xử lý file.")
                         return None, False
