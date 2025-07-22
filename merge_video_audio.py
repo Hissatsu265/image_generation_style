@@ -9,9 +9,9 @@ def replace_audio_trimmed(video_path, audio_path, output_path):
     final = video.set_audio(audio)
     final.write_videofile(output_path, codec="libx264", audio_codec="aac")
     return output_path
-if __name__ == "__main__":
-    video_path = "/workspace/multitalk_verquant/merged_videoddd.mp4"
-    audio_path = "/workspace/multitalk_verquant/audio/audio_rs_demo_side_view.mp3"
-    output_path = "output_video_with_audioddd.mp4"
-    result_path = replace_audio_trimmed(video_path, audio_path, output_path)
-    print("Video with replaced audio created at:", result_path)
+# if __name__ == "__main__":
+#     video_path = "/workspace/multitalk_verquant/merged_videoddd.mp4"
+#     audio_path = "/workspace/multitalk_verquant/audio/audio_rs_demo_side_view.mp3"
+#     output_path = "output_video_with_audioddd.mp4"
+#     result_path = replace_audio_trimmed(video_path, audio_path, output_path)
+#     print("Video with replaced audio created at:", result_path)

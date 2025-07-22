@@ -20,14 +20,14 @@ def concat_videos(video_paths, output_path="output_combined.mp4"):
             clip.close()
 
     return os.path.abspath(output_path)
-if __name__ == "__main__":
-    video_list = [
-        "/workspace/multitalk_verquant/d1.mp4",
-        "/workspace/multitalk_verquant/d2.mp4", 
-        # "/workspace/multitalk_verquant/c3.mp4",
-        "/workspace/multitalk_verquant/d3.mp4",
-        # "/workspace/multitalk_verquant/c5.mp4",
-        # "/workspace/multitalk_verquant/c6.mp4"
-        ]
-    result_path = concat_videos(video_list, "merged_videoddd.mp4")
-    print("Video đã được tạo tại:", result_path)
+# if __name__ == "__main__":
+#     video_list = [
+#         "/workspace/multitalk_verquant/d1.mp4",
+#         "/workspace/multitalk_verquant/d2.mp4", 
+#         # "/workspace/multitalk_verquant/c3.mp4",
+#         "/workspace/multitalk_verquant/d3.mp4",
+#         # "/workspace/multitalk_verquant/c5.mp4",
+#         # "/workspace/multitalk_verquant/c6.mp4"
+#         ]
+#     result_path = concat_videos(video_list, "merged_videoddd.mp4")
+#     print("Video đã được tạo tại:", result_path)

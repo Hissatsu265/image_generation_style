@@ -17,20 +17,27 @@ def convert_bbox_pil_coordinates(xmin, ymin, xmax, ymax, img_width, img_height):
 
     return (left, top, right, bottom)
 
-def pad_width_to_ratio(image, target_ratio):
-    """Pad ảnh theo chiều ngang để đạt gần target_ratio (width/height)"""
+def pad_to_ratio(image, target_ratio):
     width, height = image.size
     current_ratio = width / height
 
-    if current_ratio >= target_ratio:
-        return image
+    if abs(current_ratio - target_ratio) < 1e-3:
+        return image  # gần đúng rồi, khỏi pad
 
-    target_width = int(height * target_ratio)
-    pad_total = target_width - width
-    pad_left = pad_total // 2
-    pad_right = pad_total - pad_left
-
-    return ImageOps.expand(image, border=(pad_left, 0, pad_right, 0), fill="black")
+    if current_ratio > target_ratio:
+        # ảnh rộng hơn → pad trên và dưới
+        target_height = int(width / target_ratio)
+        pad_total = target_height - height
+        pad_top = pad_total // 2
+        pad_bottom = pad_total - pad_top
+        return ImageOps.expand(image, border=(0, pad_top, 0, pad_bottom), fill="black")
+    else:
+        # ảnh hẹp hơn → pad trái và phải
+        target_width = int(height * target_ratio)
+        pad_total = target_width - width
+        pad_left = pad_total // 2
+        pad_right = pad_total - pad_left
+        return ImageOps.expand(image, border=(pad_left, 0, pad_right, 0), fill="black")
 
 def crop_and_pad_bboxes(image_path, bboxes, output_dir="output_crops"):
     os.makedirs(output_dir, exist_ok=True)
@@ -50,12 +57,13 @@ def crop_and_pad_bboxes(image_path, bboxes, output_dir="output_crops"):
             continue
 
         cropped = image.crop((left, top, right, bottom))
-        padded = pad_width_to_ratio(cropped, original_ratio)
+        padded = pad_to_ratio(cropped, original_ratio)
         out_path = os.path.join(output_dir, f"crop_{i+1}.png")
         padded.save(out_path)
         result_paths.append(out_path)
 
     return result_paths
+
 
 
 # if __name__ == "__main__":
