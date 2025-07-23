@@ -50,22 +50,40 @@ def cut_audio_from_time(input_path, start_time_sec, output_path=None):
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Không tìm thấy file: {input_path}")
     
-    # Load file audio
     audio = AudioSegment.from_file(input_path)
     
-    # Chuyển giây sang milliseconds
     start_ms = int(start_time_sec * 1000)
     
-    # Cắt từ start_ms đến hết file
     if start_ms > len(audio):
         raise ValueError("Thời gian bắt đầu lớn hơn độ dài file audio.")
 
     trimmed_audio = audio[start_ms:]
 
-    # Tạo tên file output nếu chưa có
+    base, ext = os.path.splitext(input_path)  # ✅ luôn lấy ext từ input
     if not output_path:
-        base, ext = os.path.splitext(input_path)
         output_path = f"{base}_cut_from_{start_time_sec}s{ext}"
     
-    # Lưu file
-    trimmed_audio.export(output_path, format=ext[1:])  # bỏ dấu chấ
+    trimmed_audio.export(output_path, format=ext[1:])  # safe vì ext luôn có
+    print(f"✅ Đã cắt audio từ {start_time_sec}s và lưu tại: {output_path}")
+    return output_path
+
+def cut_audio(input_path: str, output_path: str, end_time_sec: float):
+    from pydub import AudioSegment
+    import os
+
+    # Đọc audio
+    audio = AudioSegment.from_file(input_path)
+    
+    # Cắt từ đầu đến thời điểm chỉ định
+    end_time_ms = int(end_time_sec * 1000)
+    cut_audio = audio[:end_time_ms]
+
+    # Tạo thư mục nếu cần
+    dir_name = os.path.dirname(output_path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
+
+    # Lưu audio
+    cut_audio.export(output_path, format=os.path.splitext(output_path)[-1][1:])
+    print(f"✅ Đã cắt audio và lưu tại: {output_path}")
+    return output_path

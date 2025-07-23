@@ -1,6 +1,6 @@
 from pydub import AudioSegment
 
-def merge_audio_files(audio_path1, audio_path2, output_path="merged_audio.wav"):
+def merge_audio_files(audio_path1, audio_path2, output_path="merged_audio.mp3"):
     audio1 = AudioSegment.from_file(audio_path1)
     audio2 = AudioSegment.from_file(audio_path2)
     merged = audio1 + audio2
