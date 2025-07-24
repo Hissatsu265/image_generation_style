@@ -9,6 +9,7 @@ from merge_video import concat_videos
 from take_lastframe import save_last_frame
 from cut_video import cut_video,cut_audio,cut_audio_from_time
 from audio_duration import get_audio_duration
+from add03seconds import add_silence_to_audio
 from keepratio import ImagePadder
 
 import sys
@@ -688,50 +689,98 @@ def run_graio_demo(args):
         bbox1 = [0, 0, 0, 0]  # xmin, ymin, xmax, ymax for person 1
         bbox2 = [0, 0, 0, 0]  # xmin, ymin, xmax, ymax for person 2
         # Get mode-specific inputs
+        scenes = []
+
         if mode == 'single_file':
             audio_path_1 = input("Enter audio file path: ").strip()
             if not os.path.exists(audio_path_1):
                 print(f"Error: Audio path {audio_path_1} does not exist!")
                 return None
-            
-                
-
-                
         elif mode == 'single_tts':
             tts_text = input("Enter TTS text: ").strip()
             voice_input = input(f"Enter voice path (default: {human1_voice}): ").strip()
             if voice_input:
-                human1_voice = voice_input
-                
+                human1_voice = voice_input  
         elif mode == 'multi_file':
-            audio_path_1 = input("Enter audio file path for person 1: ").strip()
-            audio_path_2 = input("Enter audio file path for person 2: ").strip()
-            if not os.path.exists(audio_path_1) or not os.path.exists(audio_path_2):
-                print("Error: One or both audio paths do not exist!")
-                return None
-            
-            print("Audio combination type:")
-            print("  1. add - Add audios together")
-            print("  2. para - Parallel audio")
-            type_choice = input("Select type (1-2): ").strip()
-            audio_type = 'add' if type_choice == '1' else 'para'
-            if audio_type == 'add':
-                print("Nhập thông tin cho bbox thứ 1 (định dạng: xmin ymin xmax ymax):")
-                bbox1_input = input(">>> ").strip()
-                bbox1 = list(map(int, bbox1_input.split()))
-                if (get_audio_duration(audio_path_1) + get_audio_duration(audio_path_2) > 14) :
-                    prompt = input("Enter prompt for bbox1: ").strip()
-                    promptforbbox.append(prompt)
+            def get_input(prompt_text, required=False, valid_values=None):
+                while True:
+                    value = input(prompt_text).strip()
+                    if required and not value:
+                        print("⚠ This field is required. Please enter a value.")
+                    elif valid_values and value not in valid_values:
+                        print(f"⚠ Invalid input! Valid options are: {valid_values}")
+                    else:
+                        return value if value else None
 
-                print("Nhập thông tin cho bbox thứ 2 (định dạng: xmin ymin xmax ymax):")
-                bbox2_input = input(">>> ").strip()
-                bbox2 = list(map(int, bbox2_input.split()))
-                if (get_audio_duration(audio_path_1) + get_audio_duration(audio_path_2) > 14) :
-                    prompt = input("Enter prompt for bbox1: ").strip()
-                    promptforbbox.append(prompt)
+            def parse_bbox(bbox_str):
+                try:
+                    values = [int(x) for x in bbox_str.split(',')]
+                    if len(values) != 4:
+                        raise ValueError
+                    return values
+                except:
+                    print("⚠ Invalid bbox format. Please enter 4 comma-separated integers (e.g., 10,20,100,150).")
+                    return None
 
-                print("Bbox 1:", bbox1)
-                print("Bbox 2:", bbox2)
+
+            while True:
+                print("\n=== Enter information for a new scene ===")
+
+                image_path = get_input("Enter image path (image_path): ", required=True)
+                prompt = get_input("Enter description prompt: ", required=True)
+
+                mode_input = get_input("Enter mode (1 = single_file, 2 = multi_file): ", required=True, valid_values=['1', '2'])
+                mode = "single_file" if mode_input == '1' else "multi_file"
+
+                scene = {
+                    'image_path': image_path,
+                    'prompt': prompt,
+                    'mode': mode
+                }
+
+                if mode == "single_file":
+                    audio_path_1 = get_input("Enter audio_path_1: ", required=True)
+                    scene['audio_path_1'] = audio_path_1
+                    scene['audio_path_2'] = None
+                    scene['audio_type'] = None
+                    scene['bbox1'] = None
+                    scene['bbox2'] = None
+                else:  # multi_file
+                    audio_path_1 = get_input("Enter audio_path_1: ", required=True)
+                    audio_path_2 = get_input("Enter audio_path_2: ", required=True)
+                    audio_type = get_input("Enter audio_type (add or para): ", required=True, valid_values=['add', 'para'])
+
+                    while True:
+                        bbox1_str = get_input("Enter bbox1 (format: x1,y1,x2,y2): ", required=True)
+                        bbox1 = parse_bbox(bbox1_str)
+                        if bbox1 is not None:
+                            break
+
+                    while True:
+                        bbox2_str = get_input("Enter bbox2 (format: x1,y1,x2,y2): ", required=True)
+                        bbox2 = parse_bbox(bbox2_str)
+                        if bbox2 is not None:
+                            break
+
+                    scene.update({
+                        'audio_path_1': audio_path_1,
+                        'audio_path_2': audio_path_2,
+                        'audio_type': audio_type,
+                        'bbox1': bbox1,
+                        'bbox2': bbox2
+                    })
+
+                scenes.append(scene)
+
+                cont = input("Do you want to add another scene? (y/n): ").strip().lower()
+                if cont != 'y':
+                    break
+
+            print("\nList of scenes entered:")
+            for i, s in enumerate(scenes, 1):
+                print(f"Scene {i}: {s}")
+            mode="multi_file"
+
 
         elif mode == 'multi_tts':
             tts_text = input("Enter TTS text (format: (s1) text1 (s2) text2): ").strip()
@@ -745,6 +794,7 @@ def run_graio_demo(args):
         list_image_paths = []
         list_prompt_paths = []
         image_path=""
+        print(mode,"===============")
         if mode == 'single_file' and  get_audio_duration(audio_path_1) >14:
             while True  :
                 print("\nEnter image paths for video generation (type 'quit' to stop):")
@@ -764,13 +814,19 @@ def run_graio_demo(args):
                 else:
                     print("Path cannot be empty. Please try again.")
             print("Image paths received:", list_image_paths)
-        else:
+        elif mode != 'multi_file':
+            print("\nEnter image path and prompt for video generation:")
             image_path = input("Enter image path: ").strip()
             if not os.path.exists(image_path):
                 print(f"Error: Image path {image_path} does not exist!")
                 return None
             prompt = input("Enter prompt: ").strip()
-
+        elif mode == 'multi_file':
+            image_path=scenes[0]['image_path']
+            prompt = scenes[0]['prompt']
+            audio_type="add"
+            audio_path_1 = scenes[0]['audio_path_1']
+            audio_path_2 = scenes[0]['audio_path_1']
 
     # =========================================================================
         # Get advanced options
@@ -792,8 +848,8 @@ def run_graio_demo(args):
                     n_prompt = n_prompt_input
             except ValueError:
                 print("Invalid input for advanced options. Using defaults.")
-        
-        return promptforbbox, list_image_paths,list_prompt_paths, {
+        print("\nAdvanced options set:")
+        return scenes, list_image_paths,list_prompt_paths, {
             'image_path': image_path,
             'prompt': prompt,
             'audio_path_1': audio_path_1,
@@ -818,8 +874,9 @@ def run_graio_demo(args):
     
     while True:
         try:
-            promptforbbox, list_image_paths,list_prompt_paths, user_input = get_user_input()
-            
+            print("sđsdfsdfsdfsdf")
+            scenes, list_image_paths,list_prompt_paths, user_input = get_user_input()
+            print("ádasafdfsfdf")
             if user_input is None:
                 print("Goodbye!")
                 break
@@ -849,6 +906,7 @@ def run_graio_demo(args):
                             user_input['image_path'] = list_image_paths[safe_idx]
                             user_input['prompt'] =  list_prompt_paths[safe_idx] 
                             print(f"Đang sử dụng ảnh: {user_input['image_path']}")
+                        
         # =====================================================================
                         try:
                             k="960"
@@ -898,25 +956,17 @@ def run_graio_demo(args):
                     del_file(output_file1)
                 else:
                     output_file = generate_video_from_inputs(**user_input)
-            elif user_input.get('mode') == 'multi_file' and \
-            get_audio_duration(user_input['audio_path_1']) + get_audio_duration(user_input['audio_path_2']) > 14:
-                output_paths, durations, success = process_audio_file(user_input['audio_path_1'], "output_segments")
-                output_paths2, durations2, success2 = process_audio_file(user_input['audio_path_2'], "output_segments2")  
-                if success and success2 and output_paths :
-
-                    list_image_pathsforbbox=crop_with_ratio_expansion(user_input['image_path'], [user_input['bbox1'], user_input['bbox2']])
-                    print("Hoàn thành xử lý audio!")
-                    output_files =[]
-                    idx=0
-                    original_audio_path = user_input['audio_path_1']
-                    original_audio_path2 = user_input['audio_path_2']
-                    user_input1={
+            elif user_input.get('mode') == 'multi_file':
+                output_files=[]
+                for scene in scenes:
+                    print(f"\nProcessing scene: {scene}")
+                    userinput={
                         'image_path': user_input['image_path'],
                         'prompt': user_input['prompt'],
                         'audio_path_1': user_input['audio_path_1'],
-                        'audio_path_2':"silent_0.5s.mp3",
+                        'audio_path_2': user_input['audio_path_2'],
                         'mode': user_input['mode'],
-                        'tts_text': "tts_text",
+                        'tts_text': "",
                         'resolution': user_input['resolution'],
                         'human1_voice': user_input['human1_voice'],
                         'human2_voice': user_input['human2_voice'],
@@ -929,133 +979,66 @@ def run_graio_demo(args):
                         'bbox1': user_input['bbox1'],
                         'bbox2': user_input['bbox2']
                     }
-                    user_input2={
-                        'image_path': user_input['image_path'],
-                        'prompt': user_input['prompt'],
-                        'audio_path_1': user_input['audio_path_1'],
-                        'audio_path_2':"silent_0.5s.mp3",
-                        'mode': "single_file",
-                        'tts_text': "tts_text",
-                        'resolution': user_input['resolution'],
-                        'human1_voice': user_input['human1_voice'],
-                        'human2_voice': user_input['human2_voice'],
-                        'audio_type': user_input['audio_type'],
-                        'sd_steps': user_input['sd_steps'],
-                        'seed': user_input['seed'],
-                        'text_guide_scale': user_input['text_guide_scale'],
-                        'audio_guide_scale': user_input['audio_guide_scale'],
-                        'n_prompt': user_input['n_prompt'],
-                        'bbox1': user_input['bbox1'],
-                        'bbox2': user_input['bbox2']
-                    }
-                    for path in output_paths:
-                        print(f"tạo video cho audio : {path}")
-                        print(output_paths2[0])
-                        print(output_paths2)
-                        print(output_paths)
-                        # if idx%2==0 and idx==len(output_paths)-1 and (get_audio_duration(path) + get_audio_duration(output_paths2[0])) <= 15:
-                        #     print("heeeeeee")
-                        # else:
-                        #     print("heeeeeee2222")
-
-                        if idx%2==0 and idx==len(output_paths)-1 and (get_audio_duration(path) + get_audio_duration(output_paths2[0])) <= 15:
-
-                            real_audio1 = cut_audio( path,"realaudio1.mp3" ,durations[idx]-0.3)
-                            user_input1['audio_path_1'] = real_audio1
-                            user_input1['audio_path_2'] = output_paths2[0]
-                            real_audio = cut_audio( output_paths2[0],"realaudio.mp3" ,durations2[0]-0.3)
-                            print("hi")
-                            from merge_audio import merge_audio_files
-                            print("2")
-                            original_audio_path=merge_audio_files(original_audio_path , real_audio)
-                            print("thời gian audio sau khi gộp thêm: ",get_audio_duration(original_audio_path))
-                            original_audio_path2=cut_audio_from_time(original_audio_path2,durations2[0]-0.3,"outpppppput.mp3")
-                            print("thời gian audio2 sau khi cắt: ",get_audio_duration(original_audio_path2))
-                            print("heeeeeee")
-                            output_paths2.pop(0)
-                            durations2.pop(0)
-                            print(user_input1)
-                            # print(output-paths2)
-                            output_file_raw = generate_video_from_inputs(**user_input1)
-                            # output_file=cut_video(output_file_raw, durations[idx]-0.3)
-                            output_files.append(output_file_raw)   
-                            del_file(path) 
-                            del_file(real_audio1)
-                            del_file(real_audio)
-                            # del_file(user_input['image_path']) 
-                            # del_file(output_file_raw)
-                        elif idx%2==0:
-                            print("heeeeeee")
-                            user_input1['audio_path_1'] = path
-                            print(user_input1)
-
-                            output_file_raw = generate_video_from_inputs(**user_input1)
-                            output_file=cut_video(output_file_raw, durations[idx]-0.3)
-                            output_files.append(output_file)   
-                            del_file(path) 
-                            # del_file(user_input['image_path']) 
-                            del_file(output_file_raw)
-                        else:
-                            user_input2['audio_path_1'] = path
-                            user_input2['image_path'] = list_image_pathsforbbox[0]
-                            user_input2['prompt'] = promptforbbox[0]
-                            output_file_raw = generate_video_from_inputs(**user_input2)
-                            output_file=cut_video(output_file_raw, durations[idx]-0.3)
-                            output_files.append(output_file)   
-                            del_file(path) 
-                            # del_file(user_input['image_path']) 
-                            del_file(output_file_raw)
-                        idx+=1
-                    
-                    output_file1 = concat_videos(output_files, "merged_video_raw.mp4")
-                    from merge_video_audio import replace_audio_trimmed
-                    output_file12 = replace_audio_trimmed(output_file1,original_audio_path,"merged_video.mp4")
-                    for path in list_image_paths:
-                        del_file(path)
-                    for path in output_files:
-                        del_file(path)
-                    del_file(output_file1)
-# ======================================================================================
-                    idx=0
-                    output_files =[]
-                    for path in output_paths2:
-                        print(f"tạo video cho audio : {path}")
-                        if idx%2!=0:
-                            user_input1['audio_path_1'] = path
-                            user_input1['bbox1'] = user_input['bbox2']
-                            user_input1['bbox2'] = user_input['bbox1']
-                            output_file_raw = generate_video_from_inputs(**user_input1)
-                            output_file=cut_video(output_file_raw, durations2[idx]-0.3)
-                            output_files.append(output_file)   
-                            del_file(path) 
-                            # del_file(user_input['image_path']) 
-                            del_file(output_file_raw)
-                        else:
-                            user_input2['audio_path_1'] = path
-                            user_input2['image_path'] = list_image_pathsforbbox[1]
-                            user_input2['prompt'] = promptforbbox[1]
-                            output_file_raw = generate_video_from_inputs(**user_input2)
-                            output_file=cut_video(output_file_raw, durations2[idx]-0.3)
-                            output_files.append(output_file)   
-                            del_file(path) 
-                            # del_file(user_input['image_path']) 
-                            del_file(output_file_raw)
-                        idx+=1
-                    
-                    output_file1 = concat_videos(output_files, "merged_video_raw1.mp4")
-                    from merge_video_audio import replace_audio_trimmed
-                    output_file11 = replace_audio_trimmed(output_file1,original_audio_path2,"merged_video1.mp4")
-                    for path in list_image_paths:
-                        del_file(path)
-                    for path in output_files:
-                        del_file(path)
-                    del_file(output_file1)
-                    output_file= concat_videos([output_file12, output_file11], "merged_video.mp4")
-                    # del_file(output_file11)
-                    # del_file(output_file12)
-
-                else:
-                    output_file = generate_video_from_inputs(**user_input)
+                    userinput['image_path'] = scene['image_path']
+                    userinput['mode'] = scene['mode']
+                    userinput['prompt'] = scene['prompt']
+                    userinput['audio_path_1'] = scene.get('audio_path_1', None)
+                    userinput['audio_path_2'] = scene.get('audio_path_2', userinput['audio_path_1'])
+                    userinput['audio_type'] = scene.get('audio_type', 'add')
+                    userinput['bbox1'] = scene.get('bbox1', [0, 0, 0, 0])
+                    userinput['bbox2'] = scene.get('bbox2', [0, 0, 0, 0])
+                    duration=get_audio_duration(userinput['audio_path_1'])
+                    if userinput['mode'] == 'multi_file' and userinput['audio_type'] == 'add':
+                        duration= duration + get_audio_duration(userinput['audio_path_2'])    
+                        userinput['audio_path_2'] =  add_silence_to_audio(userinput['audio_path_2'])
+                        # del_file(userinput['audio_path_2'])
+                    elif userinput['mode'] == 'single_file':
+                        userinput['audio_path_1'] = add_silence_to_audio(userinput['audio_path_1'])
+                        # del_file(userinput['audio_path_1'])
+                        
+                    # output_file = generate_video_from_inputs(**user_input)
+# ========================================================================================
+                    try:
+                        k="960"
+                        if userinput['resolution'] == 'multitalk-480': k="627"
+                        
+                        info,output_path = padder.pad_image(
+                            image_path=userinput['image_path'],
+                            ratio_type=k, 
+                            output_path="padded_image.jpg",
+                            info_path="padding_info.json"
+                        )
+                        userinput['image_path'] = output_path   
+                    except Exception as e:
+                        print(f"Lỗi: {e}")
+    # =====================================================================
+                    output_file_raw = generate_video_from_inputs(**userinput)
+                    namefile=get_safe_output_filename(output_file_raw)
+                    restored_video = None
+                    try:
+                        restored_video = padder.restore_video_ratio(
+                            video_path=output_file_raw,
+                            padding_info_path="padding_info.json",
+                            output_path=namefile
+                        )
+                        
+                    except Exception as e:
+                        print(f"Lỗi: {e}")
+# ==========================================================================
+                                    
+# =========================================================================
+                    output_file=cut_video(restored_video, duration)
+                    output_files.append(output_file)   
+                    # del_file(us) 
+                    # del_file(user_input['image_path']) 
+                    del_file(output_file_raw)
+                    del_file(restored_video)
+# ==========================================================================================                    
+                    output_files.append(output_file)
+                output_file = concat_videos(output_files, "merged_video_raw.mp4")
+                for path in output_files:
+                    del_file(path)
+                
 
             else:
                 output_file = generate_video_from_inputs(**user_input)
@@ -1101,7 +1084,7 @@ def check_and_process_audio(user_input):
                         return None, False
                 else:
                     print("File audio ngắn hơn 14 giây, không cần cắt.")
-                    return [audio_path], True
+                    return [audio_path],[duration] ,True
             except Exception as e:
                 print(f"Lỗi khi đọc file audio: {e}")
                 return None, False
