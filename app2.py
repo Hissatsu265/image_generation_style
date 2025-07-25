@@ -10,6 +10,8 @@ from take_lastframe import save_last_frame
 from cut_video import cut_video,cut_audio,cut_audio_from_time
 from audio_duration import get_audio_duration
 from add03seconds import add_silence_to_audio
+from animation.animation_decision import select_peak_segment
+from animation.zoomin import create_face_zoom_video
 from keepratio import ImagePadder
 
 import sys
@@ -887,6 +889,7 @@ def run_graio_demo(args):
             
 # =================================================================================
             padder = ImagePadder()
+            animation_counnt = 2
             if user_input.get('mode') == 'single_file':
                 output_paths, durations, success = check_and_process_audio(user_input)
     
@@ -935,10 +938,52 @@ def run_graio_demo(args):
                         except Exception as e:
                             print(f"Lỗi: {e}")
                         
+# ====================Animatoin======================================================
+                        if animation_counnt > 0:
+                            selected_peaks = select_peak_segment(path)
+                            if len(selected_peaks)==1:
+                                print(f"Đã chọn đoạn đỉnh: {selected_peaks[0]}")
+                                print("áp dụng animation zoom từ từ")
+                                
+                                outputpath111=restored_video
+                                restored_video = "output_gradual_zoom_shake.mp4"
+                                create_face_zoom_video(
+                                    input_video=outputpath111,
+                                    output_video=restored_video,
+                                    zoom_type="gradual",
+                                    gradual_start_time=selected_peaks[0],
+                                    gradual_end_time=selected_peaks[0]+0.5,  
+                                    hold_duration=4,      
+                                    zoom_factor=1.2,
+                                    enable_shake=False,
+                                    shake_intensity=3,
+                                    shake_start_delay=0  # Shake bắt đầu sau 0.2s khi zoom xong, kéo dài 0.5s
+                                )
+                                animation_counnt-=1
+                            elif len(selected_peaks) > 1:
+                                for peak in selected_peaks:
+                                    print(f"Đã chọn đoạn đỉnh: {peak}")
+                                    print("áp dụng animation zoom chồng chéo")
+                                    
+                                    outputpath1111=restored_video
+                                    restored_video = f"output_gradual_zoom_shake_{peak}.mp4"
+                                    create_face_zoom_video(
+                                        input_video=outputpath1111,
+                                        output_video=restored_video,
+                                        zoom_type="instant",
+                                        zoom_start_time=peak,
+                                        zoom_duration=peak + 4 - (peak-selected_peaks[0]),  
+                                        zoom_factor=1.2,
+                                        enable_shake=False,
+                                        shake_intensity=1,
+                                        shake_start_delay=0.3
+                                    )
+                                animation_counnt-=1
     # =========================================================================
                         output_file=cut_video(restored_video, durations[idx]-0.3)
                         output_files.append(output_file)   
-                        del_file(path) 
+                        if len(output_files) > 1:
+                            del_file(path) 
                         # del_file(user_input['image_path']) 
                         del_file(output_file_raw)
                         del_file(restored_video)
