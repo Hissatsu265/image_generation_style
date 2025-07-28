@@ -21,7 +21,7 @@ def detect_real_peak_voice(audio_path, frame_duration_ms=200, z_threshold=1.2):
 
     return peak_times, duration_sec
 
-def group_peaks(peaks, max_audio_time, min_gap=0.5, max_gap=3.0, min_start_time=3.5):
+def group_peaks(peaks, max_audio_time, min_gap=0.4, max_gap=3.0, min_start_time=3):
     print(peaks)
     groups = []
     n = len(peaks)
@@ -42,16 +42,16 @@ def select_peak_segment(audio_path):
     print(f"⏱️ Audio duration: {audio_duration:.2f}s")
     
     # Lọc bỏ các peak nằm ngoài khoảng cho phép
-    peak_times = remove_elements_between(peak_times, 2, audio_duration - 4)
+    peak_times = remove_elements_between(peak_times, 2, audio_duration - 3)
     peak_times = sorted(peak_times)
 
-    valid_groups = group_peaks(peak_times, max_audio_time=audio_duration, min_start_time=3.5)
+    valid_groups = group_peaks(peak_times, max_audio_time=audio_duration, min_start_time=2)
 
     if valid_groups:
         print("✅ Chọn tổ hợp hợp lệ đầu tiên:")
         selected = valid_groups[0]
     else:
-        fallback = [t for t in peak_times if 3.5 <= t < audio_duration - 4]
+        fallback = [t for t in peak_times if 2 <= t < audio_duration - 3]
         if fallback:
             print("⚠️ Không có tổ hợp hợp lệ, chọn mốc đầu tiên khả dụng:")
             selected = [fallback[0]]
@@ -62,6 +62,6 @@ def select_peak_segment(audio_path):
     print("👉 Thời điểm áp dụng zoom:", selected)
     return selected
 
-# video_path = "/workspace/multitalk_verquant/audio/Neuberger_2.wav"
+# video_path = "/workspace/multitalk_verquant/audio/folie_2_alterative.wav"
 # selected_peaks = select_peak_segment(video_path)
 # print(selected_peaks)

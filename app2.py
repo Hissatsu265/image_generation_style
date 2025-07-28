@@ -934,7 +934,7 @@ def run_graio_demo(args):
                                 padding_info_path="padding_info.json",
                                 output_path=namefile
                             )
-                            
+                            del_file(output_file_raw)
                         except Exception as e:
                             print(f"Lỗi: {e}")
                         
@@ -951,14 +951,15 @@ def run_graio_demo(args):
                                     input_video=outputpath111,
                                     output_video=restored_video,
                                     zoom_type="gradual",
-                                    gradual_start_time=selected_peaks[0],
-                                    gradual_end_time=selected_peaks[0]+0.5,  
-                                    hold_duration=4,      
+                                    gradual_start_time=selected_peaks[0]-0.15,
+                                    gradual_end_time=selected_peaks[0],  
+                                    hold_duration=get_audio_duration(path)-selected_peaks[0],      
                                     zoom_factor=1.2,
                                     enable_shake=False,
                                     shake_intensity=3,
                                     shake_start_delay=0  # Shake bắt đầu sau 0.2s khi zoom xong, kéo dài 0.5s
                                 )
+                                del_file(outputpath111)
                                 animation_counnt-=1
                             elif len(selected_peaks) > 1:
                                 for peak in selected_peaks:
@@ -972,12 +973,13 @@ def run_graio_demo(args):
                                         output_video=restored_video,
                                         zoom_type="instant",
                                         zoom_start_time=peak,
-                                        zoom_duration=peak + 4 - (peak-selected_peaks[0]),  
+                                        zoom_duration=get_audio_duration(path)-peak,  
                                         zoom_factor=1.2,
                                         enable_shake=False,
                                         shake_intensity=1,
                                         shake_start_delay=0.3
                                     )
+                                    del_file(outputpath1111)
                                 animation_counnt-=1
     # =========================================================================
                         output_file=cut_video(restored_video, durations[idx]-0.3)
