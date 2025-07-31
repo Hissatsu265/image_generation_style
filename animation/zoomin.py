@@ -44,11 +44,14 @@ class VideoFaceZoom:
                 y = int(bbox.ymin * self.height)
                 w = int(bbox.width * self.width)
                 h = int(bbox.height * self.height)
-
                 padding_left = 0.3    
                 padding_right = 0.3   
                 padding_top = 0.5     
                 padding_bottom = 0.2  
+                if self.height > self.width:
+                    padding_left = padding_right = padding_top = padding_bottom = 0.1
+                    # print("======H>W===")
+                     
 
                 x_expand_left = int(w * padding_left)
                 x_expand_right = int(w * padding_right)
@@ -70,6 +73,25 @@ class VideoFaceZoom:
         largest_face = max(faces, key=lambda face: (face[2] - face[0]) * (face[3] - face[1]))
         return largest_face
 
+    # def calculate_zoom_region(self, face_bbox, zoom_factor=1.5):
+    #     x1, y1, x2, y2 = face_bbox
+    #     face_center_x = (x1 + x2) // 2
+    #     face_center_y = (y1 + y2) // 2
+
+    #     zoom_width = int(self.width / zoom_factor)
+    #     zoom_height = int(self.height / zoom_factor)
+
+    #     zoom_x1 = max(0, face_center_x - zoom_width // 2)
+    #     zoom_y1 = max(0, face_center_y - zoom_height // 2)
+    #     zoom_x2 = min(self.width, zoom_x1 + zoom_width)
+    #     zoom_y2 = min(self.height, zoom_y1 + zoom_height)
+
+    #     if zoom_x2 - zoom_x1 < zoom_width:
+    #         zoom_x1 = max(0, zoom_x2 - zoom_width)
+    #     if zoom_y2 - zoom_y1 < zoom_height:
+    #         zoom_y1 = max(0, zoom_y2 - zoom_height)
+
+    #     return (zoom_x1, zoom_y1, zoom_x2, zoom_y2)
     def calculate_zoom_region(self, face_bbox, zoom_factor=1.5):
         x1, y1, x2, y2 = face_bbox
         face_center_x = (x1 + x2) // 2
@@ -77,6 +99,10 @@ class VideoFaceZoom:
 
         zoom_width = int(self.width / zoom_factor)
         zoom_height = int(self.height / zoom_factor)
+
+        # ⚠️ Điều chỉnh để vùng zoom lệch xuống dưới nếu là video dọc
+        if self.height > self.width:
+            face_center_y += int(0.1 * self.height)  # đẩy vùng zoom xuống 10% chiều cao
 
         zoom_x1 = max(0, face_center_x - zoom_width // 2)
         zoom_y1 = max(0, face_center_y - zoom_height // 2)
@@ -102,9 +128,7 @@ class VideoFaceZoom:
         return tuple(smooth_region)
 
     def apply_shake_effect(self, zoom_region, shake_intensity=5):
-        """
-        Thêm hiệu ứng rung nhẹ vào vùng zoom
-        """
+        
         if zoom_region is None:
             return zoom_region
             
@@ -146,21 +170,7 @@ class VideoFaceZoom:
     def process_video(self, zoom_start_frame=None, zoom_duration_frames=None, zoom_factor=1.5, 
                      zoom_type="instant", gradual_start_frame=None, gradual_end_frame=None, 
                      gradual_hold_frames=None, enable_shake=False, shake_intensity=3, shake_start_delay=0.5):
-        """
-        Xử lý video với các tùy chọn zoom khác nhau
-        
-        Args:
-            zoom_start_frame: Frame bắt đầu zoom (cho instant zoom)
-            zoom_duration_frames: Số frame zoom kéo dài (cho instant zoom)
-            zoom_factor: Độ zoom
-            zoom_type: "instant" hoặc "gradual"
-            gradual_start_frame: Frame bắt đầu zoom từ từ
-            gradual_end_frame: Frame kết thúc zoom từ từ
-            gradual_hold_frames: Số frame giữ mức zoom tối đa sau khi zoom từ từ xong
-            enable_shake: Bật hiệu ứng rung
-            shake_intensity: Độ mạnh của hiệu ứng rung
-            shake_start_delay: Delay trước khi bắt đầu shake (giây)
-        """
+
         
         frame_count = 0
         zoom_region = None
@@ -260,27 +270,7 @@ class VideoFaceZoom:
         self.out.release()
 
 def create_face_zoom_video(input_video, output_video, zoom_type="instant", **kwargs):
-    """
-    Tạo video với hiệu ứng zoom mặt
     
-    Args:
-        zoom_type: "instant" hoặc "gradual"
-        
-        Cho instant zoom:
-        - zoom_start_time: thời điểm bắt đầu zoom (giây)
-        - zoom_duration: thời gian zoom (giây)
-        
-        Cho gradual zoom:
-        - gradual_start_time: thời điểm bắt đầu zoom từ từ (giây)
-        - gradual_end_time: thời điểm kết thúc zoom từ từ (giây)
-        - hold_duration: thời gian giữ mức zoom tối đa sau khi zoom từ từ xong (giây)
-        
-        Chung:
-        - zoom_factor: độ zoom (mặc định 1.8)
-        - enable_shake: bật hiệu ứng rung (mặc định False)
-        - shake_intensity: độ mạnh rung (mặc định 3)
-        - shake_start_delay: delay trước khi rung (giây, mặc định 0.5)
-    """
     
     processor = VideoFaceZoom(input_video, output_video)
     
