@@ -747,7 +747,7 @@ def run_graio_demo(args):
                     scene['audio_type'] = None
                     scene['bbox1'] = None
                     scene['bbox2'] = None
-                else:  # multi_file
+                else:  
                     audio_path_1 = get_input("Enter audio_path_1: ", required=True)
                     audio_path_2 = get_input("Enter audio_path_2: ", required=True)
                     audio_type = get_input("Enter audio_type (add or para): ", required=True, valid_values=['add', 'para'])
@@ -851,6 +851,19 @@ def run_graio_demo(args):
             except ValueError:
                 print("Invalid input for advanced options. Using defaults.")
         print("\nAdvanced options set:")
+# ======================================================================================
+        customize = input("Do you want to customize the zoom effect? (yes/no, default = no): ").strip().lower()
+        gradual_duration = 0.0
+        zoom_factor = 1.2
+        use_shake = False
+        shake_intensity = 1
+        if customize == "yes":
+            gradual_duration = get_user_input1("Enter zoom duration in seconds", 0.0, float)
+            zoom_factor = get_user_input1("Enter zoom factor", 1.2, float)
+            use_shake = get_user_input1("Enable shake effect? (true/false)", False, lambda x: x.lower() == "true")
+            shake_intensity = get_user_input1("Enter shake intensity", 3, int)
+
+# =====================================================================================
         return scenes, list_image_paths,list_prompt_paths, {
             'image_path': image_path,
             'prompt': prompt,
@@ -869,7 +882,7 @@ def run_graio_demo(args):
             'n_prompt': n_prompt,
             'bbox1': bbox1,
             'bbox2': bbox2
-        }
+        }, gradual_duration,zoom_factor,use_shake,shake_intensity
 
     print("Welcome to MultiTalk Video Generator!")
     print("This tool generates videos from images and audio.")
@@ -877,7 +890,7 @@ def run_graio_demo(args):
     while True:
         try:
             print("sđsdfsdfsdfsdf")
-            scenes, list_image_paths,list_prompt_paths, user_input = get_user_input()
+            scenes, list_image_paths,list_prompt_paths, user_input, gradual_duration,zoom_factor,use_shake,shake_intensity = get_user_input()
             print("ádasafdfsfdf")
             if user_input is None:
                 print("Goodbye!")
@@ -947,16 +960,19 @@ def run_graio_demo(args):
                                 
                                 outputpath111=restored_video
                                 restored_video = "output_gradual_zoom_shake.mp4"
+                                
+#  gradual_duration,zoom_factor,use_shake,shake_intensity
+
                                 create_face_zoom_video(
                                     input_video=outputpath111,
                                     output_video=restored_video,
                                     zoom_type="gradual",
-                                    gradual_start_time=selected_peaks[0]-0.15,
+                                    gradual_start_time=selected_peaks[0]-gradual_duration,
                                     gradual_end_time=selected_peaks[0],  
                                     hold_duration=get_audio_duration(path)-selected_peaks[0],      
-                                    zoom_factor=1.2,
-                                    enable_shake=False,
-                                    shake_intensity=3,
+                                    zoom_factor=zoom_factor,
+                                    enable_shake=use_shake,
+                                    shake_intensity=shake_intensity,
                                     shake_start_delay=0  # Shake bắt đầu sau 0.2s khi zoom xong, kéo dài 0.5s
                                 )
                                 del_file(outputpath111)
@@ -965,18 +981,18 @@ def run_graio_demo(args):
                                 for peak in selected_peaks:
                                     print(f"Đã chọn đoạn đỉnh: {peak}")
                                     print("áp dụng animation zoom chồng chéo")
-                                    
+                                  #  gradual_duration,zoom_factor,use_shake,shake_intensity  
                                     outputpath1111=restored_video
                                     restored_video = f"output_gradual_zoom_shake_{peak}.mp4"
                                     create_face_zoom_video(
                                         input_video=outputpath1111,
                                         output_video=restored_video,
                                         zoom_type="instant",
-                                        zoom_start_time=peak,
-                                        zoom_duration=get_audio_duration(path)-peak,  
-                                        zoom_factor=1.2,
-                                        enable_shake=False,
-                                        shake_intensity=1,
+                                        zoom_start_time=peak-0.1,
+                                        zoom_duration=get_audio_duration(path)-peak+0.1,  
+                                        zoom_factor=zoom_factor,
+                                        enable_shake=use_shake,
+                                        shake_intensity=shake_intensity,
                                         shake_start_delay=0.3
                                     )
                                     del_file(outputpath1111)
@@ -1148,6 +1164,13 @@ def del_file(file_path):
     else:
         print(f"File không tồn tại: {file_path}")
 from datetime import datetime
+def get_user_input1(prompt, default, type_cast):
+    try:
+        user_input = input(f"{prompt} (default = {default}): ")
+        return type_cast(user_input) if user_input else default
+    except:
+        print(f"⚠️ Invalid input. Using default: {default}")
+        return default
 
 def get_safe_output_filename(video_path):
     name = os.path.splitext(os.path.basename(video_path))[0]
