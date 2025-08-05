@@ -797,7 +797,7 @@ def run_graio_demo(args):
         list_prompt_paths = []
         image_path=""
         print(mode,"===============")
-        if mode == 'single_file' and  get_audio_duration(audio_path_1) >14:
+        if mode == 'single_file' and  get_audio_duration(audio_path_1) >5:
             while True  :
                 print("\nEnter image paths for video generation (type 'quit' to stop):")
                 path = input(f"Enter image path #{len(list_image_paths) + 1}: ").strip()
@@ -861,7 +861,8 @@ def run_graio_demo(args):
             gradual_duration = get_user_input1("Enter zoom duration in seconds", 0.0, float)
             zoom_factor = get_user_input1("Enter zoom factor", 1.2, float)
             use_shake = get_user_input1("Enable shake effect? (true/false)", False, lambda x: x.lower() == "true")
-            shake_intensity = get_user_input1("Enter shake intensity", 3, int)
+            if use_shake:
+                shake_intensity = get_user_input1("Enter shake intensity", 3, int)
 
 # =====================================================================================
         return scenes, list_image_paths,list_prompt_paths, {
@@ -902,7 +903,7 @@ def run_graio_demo(args):
             
 # =================================================================================
             padder = ImagePadder()
-            animation_counnt = 2
+            animation_counnt = 0
             if user_input.get('mode') == 'single_file':
                 output_paths, durations, success = check_and_process_audio(user_input)
     
@@ -1132,8 +1133,8 @@ def check_and_process_audio(user_input):
             try:
                 duration = librosa.get_duration(filename=audio_path)
                 print(f"Thời lượng file audio: {duration:.2f} giây")
-                if duration > 14:
-                    print("File audio dài hơn 14 giây, tiến hành cắt audio...")
+                if duration > 5:
+                    print("File audio dài hơn 5 giây, tiến hành cắt audio...")
                     output_directory = "output_segments"
                     os.makedirs(output_directory, exist_ok=True)
                     output_paths,durations, result = process_audio_file(audio_path, output_directory)
@@ -1146,7 +1147,7 @@ def check_and_process_audio(user_input):
                         print("Có lỗi xảy ra khi xử lý file.")
                         return None, False
                 else:
-                    print("File audio ngắn hơn 14 giây, không cần cắt.")
+                    print("File audio ngắn hơn 5 giây, không cần cắt.")
                     return [audio_path],[duration] ,True
             except Exception as e:
                 print(f"Lỗi khi đọc file audio: {e}")

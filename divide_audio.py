@@ -1,6 +1,7 @@
 import os
 from pydub import AudioSegment
 from pydub.silence import detect_silence
+import random
 
 def split_audio_file(input_path, output_dir="output", max_duration=7):
     try:
@@ -57,8 +58,8 @@ def split_audio_file(input_path, output_dir="output", max_duration=7):
 
 
 def find_optimal_cut_point(audio, max_duration_ms):
-    start_check = 10 * 1000  
-    end_check = 15 * 1000  
+    start_check = 2 * 1000  
+    end_check = 7 * 1000  
 
     end_check = min(end_check, len(audio))
     check_segment = audio[start_check:end_check]
@@ -72,9 +73,10 @@ def find_optimal_cut_point(audio, max_duration_ms):
         print(f"🔇 Tìm thấy im lặng tại {optimal_cut / 1000:.2f}s")
         return optimal_cut
     else:
-        print(f"⚠️ Không tìm thấy im lặng, cắt tại {start_check / 1000:.2f}s")
-        return start_check
+        optimal_cut = random.randint(start_check, end_check)
+        print(f"⚠️ No silence found, randomly cutting at {optimal_cut / 1000:.2f}s")
+        return optimal_cut
 
 
 def process_audio_file(input_path, output_dir="output"):
-    return split_audio_file(input_path, output_dir, max_duration=15)
+    return split_audio_file(input_path, output_dir, max_duration=5)

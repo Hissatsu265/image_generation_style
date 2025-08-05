@@ -1,0 +1,62 @@
+from moviepy.editor import VideoFileClip
+import numpy as np
+
+# Load video gốc
+clip = VideoFileClip("/content/clip_1.mp4")
+
+# === Cấu hình zoom ===
+zoom_duration = 0.75              # Thời gian hiệu ứng zoom (giây)
+zoom_start_time = 1.0             # Thời điểm bắt đầu zoom (giây)
+zoom_percent = 0.5                # Zoom vào 30% kích thước video (0.3 = 30%)
+
+# Kích thước video gốc và tỷ lệ
+W, H = clip.size
+aspect_ratio = W / H
+
+# Tâm điểm vùng cần zoom (có thể thay đổi theo ý bạn)
+cx, cy = 200, 500
+
+# Kích thước vùng zoom nhỏ nhất (sau khi zoom xong)
+min_zoom_w = int(W * zoom_percent)
+min_zoom_h = int(min_zoom_w / aspect_ratio)
+
+# Hàm xác định vùng crop theo thời gian
+def dynamic_crop(t):
+    if t < zoom_start_time:
+        # Trước khi bắt đầu zoom: hiển thị toàn khung
+        return 0, 0, W, H
+
+    elif t >= zoom_start_time + zoom_duration:
+        # Sau khi zoom xong: giữ vùng zoom cố định
+        crop_w = min_zoom_w
+        crop_h = min_zoom_h
+    else:
+        # Trong quá trình zoom: scale từ 1.0 đến target zoom
+        alpha = (t - zoom_start_time) / zoom_duration
+        crop_w = int(W - alpha * (W - min_zoom_w))
+        crop_h = int(H - alpha * (H - min_zoom_h))
+
+        # Đảm bảo đúng tỉ lệ
+        crop_h = int(crop_w / aspect_ratio)
+
+    # Tính vị trí crop từ tâm điểm
+    x1 = max(0, cx - crop_w // 2)
+    y1 = max(0, cy - crop_h // 2)
+    x2 = min(W, x1 + crop_w)
+    y2 = min(H, y1 + crop_h)
+
+    # Cập nhật lại để đảm bảo đúng kích thước
+    x1 = x2 - crop_w
+    y1 = y2 - crop_h
+
+    return x1, y1, x2, y2
+
+# Áp dụng crop động từng frame
+zoomed = clip.fl(lambda gf, t: 
+    clip.crop(*dynamic_crop(t))
+        .resize((W, H))
+        .get_frame(t)
+)
+
+# Ghi kết quả ra file
+zoomed.set_duration(clip.duration).write_videofile("output_zoomed.mp4", codec="libx264")
