@@ -1,30 +1,29 @@
-# MultiTalk Video Generation Workflow
+# MultiTalk Workflow Description
 
-A comprehensive guide for setting up and using the MultiTalk video generation workflow with AI models.
+## Current Features
 
-## Table of Contents
+This workflow creates videos with audio and human portraits, featuring automatic scene transitions using different images.
 
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Model Download](#model-download)
-- [Model Setup](#model-setup)
-- [Dependencies Installation](#dependencies-installation)
-- [Usage](#usage)
-- [Troubleshooting](#troubleshooting)
-- [System Requirements](#system-requirements)
+## Disabled Features
 
-## Overview
+The repository includes code for additional effects that are currently disabled to keep the workflow simple:
+- Transition effects
+- Product zoom-in effects
 
-This workflow enables video generation using MultiTalk technology, combining multiple AI models for high-quality video synthesis. The setup involves downloading several pre-trained models and configuring the environment properly.
+These can be manually enabled after basic video generation.
 
-## Prerequisites
+## Audio Segmentation
 
-- Python 3.8+
-- CUDA-compatible GPU (recommended)
-- Git
-- Hugging Face CLI
-- At least 20GB free disk space for models
+**Default Behavior**: Audio files longer than 5 seconds are automatically split for scene transitions.
+
+**To Change the 5-second Limit**:
+
+1. **File: `divide_audio.py`** - Edit lines 61, 62, and 82
+2. **File: `app2.py`** - Edit lines 800 and 1136
+
+Change `> 5` to your preferred duration (e.g., `> 10` for 10 seconds).
+
+This controls when automatic scene transitions begin based on audio length.
 
 ## Installation
 
