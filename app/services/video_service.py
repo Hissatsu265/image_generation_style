@@ -143,21 +143,18 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path,output_path,job
         "--save_file",video_namepadder.replace(".mp4", ""), 
         "--sample_shift", "2"
     ]
-    print("dfsdhfsjdfhbs")
-    # result = subprocess.run(cmd ,check=True)
     process = await asyncio.create_subprocess_exec(
-        *cmd
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
     )
-    # stdout, stderr = await process.communicate()
 
-    # if process.returncode != 0:
-        # raise RuntimeError(f"Video creation failed: {stderr.decode()}")
-        
-    # print("STDOUT:", result.stdout)
-    # print("STDERR:", result.stderr)
+    # Chờ process chạy xong
+    stdout, stderr = await process.communicate()
 
-    # if result.returncode != 0:
-    #     print("Lỗi khi chạy lệnh:", result.stderr)
+    if process.returncode != 0:
+        raise RuntimeError(f"Video creation failed: {stderr.decode()}")
+    print("========================================================================")
 
     restored_video = padder.restore_video_ratio(
                                 video_path=video_namepadder,
