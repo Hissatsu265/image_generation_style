@@ -1,0 +1,29 @@
+import os
+from pathlib import Path
+
+# Base directory
+BASE_DIR = Path(__file__).parent
+
+# Output directory
+OUTPUT_DIR = BASE_DIR / "outputs"
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+# Upload directory
+UPLOAD_DIR = BASE_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Log directory
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+# Redis configuration for job queue
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
+# API Configuration
+API_HOST = os.getenv("API_HOST", "0.0.0.0")
+API_PORT = int(os.getenv("API_PORT", 8000))
+
+# Job cleanup configuration
+JOB_RETENTION_HOURS = int(os.getenv("JOB_RETENTION_HOURS", 24))  # Giữ job trong 24h
+VIDEO_RETENTION_HOURS = int(os.getenv("VIDEO_RETENTION_HOURS", 72))  # Giữ video trong 72h
+CLEANUP_INTERVAL_MINUTES = int(os.getenv("CLEANUP_INTERVAL_MINUTES", 60))  # Cleanup mỗi 60 phút
