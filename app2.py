@@ -1177,6 +1177,129 @@ def get_safe_output_filename(video_path):
     name = os.path.splitext(os.path.basename(video_path))[0]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{name}_restored_{timestamp}.mp4"
+
+def generate_video_from_inputs1(image_path, prompt, audio_path_1, audio_path_2, 
+                                  mode, tts_text, resolution, human1_voice, human2_voice,
+                                  audio_type='add', sd_steps=8, seed=42, text_guide_scale=1.0, 
+                                  audio_guide_scale=2.0, n_prompt="",bbox1=[0, 0, 0, 0], bbox2=[0, 0, 0, 0]):
+        """
+        Generate video from command line inputs
+        """
+        input_data = {}
+        input_data["prompt"] = prompt
+        input_data["cond_image"] = image_path
+        person = {}
+        
+        if mode == "single_file":
+            person['person1'] = audio_path_1
+        elif mode == "single_tts":
+            tts_audio = {}
+            tts_audio['text'] = tts_text
+            tts_audio['human1_voice'] = human1_voice
+            input_data["tts_audio"] = tts_audio
+        elif mode == "multi_file":
+            person['person1'] = audio_path_1
+            person['person2'] = audio_path_2
+            input_data["audio_type"] = audio_type
+            if audio_type == 'add':
+                bbox={}
+                bbox['person1'] = bbox1
+                bbox['person2'] = bbox2
+                input_data["bbox"] = bbox
+        elif mode == "multi_tts":
+            tts_audio = {}
+            tts_audio['text'] = tts_text
+            tts_audio['human1_voice'] = human1_voice
+            tts_audio['human2_voice'] = human2_voice
+            input_data["tts_audio"] = tts_audio
+            
+        input_data["cond_audio"] = person
+
+        # Process audio based on mode
+        if 'file' in mode:
+            if len(input_data['cond_audio']) == 2:
+                new_human_speech1, new_human_speech2, sum_human_speechs = audio_prepare_multi(
+                    input_data['cond_audio']['person1'], 
+                    input_data['cond_audio']['person2'], 
+                    input_data['audio_type']
+                )
+                audio_embedding_1 = get_embedding(new_human_speech1, wav2vec_feature_extractor, audio_encoder)
+                audio_embedding_2 = get_embedding(new_human_speech2, wav2vec_feature_extractor, audio_encoder)
+                emb1_path = os.path.join(args.audio_save_dir, '1.pt')
+                emb2_path = os.path.join(args.audio_save_dir, '2.pt')
+                sum_audio = os.path.join(args.audio_save_dir, 'sum.wav')
+                sf.write(sum_audio, sum_human_speechs, 16000)
+                torch.save(audio_embedding_1, emb1_path)
+                torch.save(audio_embedding_2, emb2_path)
+                input_data['cond_audio']['person1'] = emb1_path
+                input_data['cond_audio']['person2'] = emb2_path
+                input_data['video_audio'] = sum_audio
+            elif len(input_data['cond_audio']) == 1:
+                human_speech = audio_prepare_single(input_data['cond_audio']['person1'])
+                audio_embedding = get_embedding(human_speech, wav2vec_feature_extractor, audio_encoder)
+                emb_path = os.path.join(args.audio_save_dir, '1.pt')
+                sum_audio = os.path.join(args.audio_save_dir, 'sum.wav')
+                sf.write(sum_audio, human_speech, 16000)
+                torch.save(audio_embedding, emb_path)
+                input_data['cond_audio']['person1'] = emb_path
+                input_data['video_audio'] = sum_audio
+        elif 'tts' in mode:
+            if mode == "single_tts":
+                new_human_speech1, sum_audio = process_tts_single(
+                    input_data['tts_audio']['text'], 
+                    args.audio_save_dir, 
+                    input_data['tts_audio']['human1_voice']
+                )
+                audio_embedding_1 = get_embedding(new_human_speech1, wav2vec_feature_extractor, audio_encoder)
+                emb1_path = os.path.join(args.audio_save_dir, '1.pt')
+                torch.save(audio_embedding_1, emb1_path)
+                input_data['cond_audio']['person1'] = emb1_path
+                input_data['video_audio'] = sum_audio
+            else:  # multi_tts
+                new_human_speech1, new_human_speech2, sum_audio = process_tts_multi(
+                    input_data['tts_audio']['text'], 
+                    args.audio_save_dir, 
+                    input_data['tts_audio']['human1_voice'], 
+                    input_data['tts_audio']['human2_voice']
+                )
+                audio_embedding_1 = get_embedding(new_human_speech1, wav2vec_feature_extractor, audio_encoder)
+                audio_embedding_2 = get_embedding(new_human_speech2, wav2vec_feature_extractor, audio_encoder)
+                emb1_path = os.path.join(args.audio_save_dir, '1.pt')
+                emb2_path = os.path.join(args.audio_save_dir, '2.pt')
+                torch.save(audio_embedding_1, emb1_path)
+                torch.save(audio_embedding_2, emb2_path)
+                input_data['cond_audio']['person1'] = emb1_path
+                input_data['cond_audio']['person2'] = emb2_path
+                input_data['video_audio'] = sum_audio
+
+        logging.info("Generating video ...")
+        video = wan_i2v.generate(
+            input_data,
+            size_buckget=resolution,
+            motion_frame=args.motion_frame,
+            frame_num=args.frame_num,
+            shift=args.sample_shift,
+            sampling_steps=sd_steps,
+            text_guide_scale=text_guide_scale,
+            audio_guide_scale=audio_guide_scale,
+            seed=seed,
+            n_prompt=n_prompt,
+            offload_model=args.offload_model,
+            max_frames_num=args.frame_num if args.mode == 'clip' else 1000,
+            color_correction_strength=args.color_correction_strength,
+            extra_args=args,
+        )
+
+        # Generate save filename
+        formatted_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        formatted_prompt = prompt.replace(" ", "_").replace("/", "_")[:50]
+        save_filename = f"{args.task}_{resolution}_{formatted_prompt}_{formatted_time}"
+        
+        logging.info(f"Saving generated video to {save_filename}.mp4")
+        save_video_ffmpeg(video, save_filename, [input_data['video_audio']], high_quality_save=False)
+        logging.info("Video generation completed.")
+
+        return save_filename + '.mp4'
 if __name__ == "__main__":
     args = _parse_args()
     run_graio_demo(args)
