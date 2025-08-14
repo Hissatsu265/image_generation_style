@@ -64,12 +64,13 @@ def find_optimal_cut_point(audio, max_duration_ms):
     check_segment = audio[start_check:end_check]
 
     silence_ranges = detect_silence(check_segment, min_silence_len=100, silence_thresh=-40)
+    print("==========================", silence_ranges, "==================")
 
     if silence_ranges:
-        first_silence = silence_ranges[0]
-        silence_middle = (first_silence[0] + first_silence[1]) // 2
+        chosen_silence = random.choice(silence_ranges)  # chọn ngẫu nhiên một khoảng im lặng
+        silence_middle = (chosen_silence[0] + chosen_silence[1]) // 2
         optimal_cut = start_check + silence_middle
-        print(f"🔇 Tìm thấy im lặng tại {optimal_cut / 1000:.2f}s")
+        print(f"🔇 Tìm thấy im lặng tại {optimal_cut / 1000:.2f}s (ngẫu nhiên)")
         return optimal_cut
     else:
         optimal_cut = random.randint(start_check, end_check)

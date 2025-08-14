@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List
 import subprocess
 import json
+import random
 
 from divide_audio import process_audio_file
 from multiperson_imageedit import crop_with_ratio_expansion
@@ -59,26 +60,59 @@ class VideoService:
             if output_path.exists():
                 output_path.unlink()
             raise e
-async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path):
+async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_video):
     print("sdf")
-    generate_output_filename = output_path
+    generate_output_filename = output_path_video
     print("sdf")
     if get_audio_duration(cond_audio_path) > 15:
         output_directory = "output_segments"
         os.makedirs(output_directory, exist_ok=True)
         output_paths,durations, result = process_audio_file(cond_audio_path, output_directory)
+        results=[]
+        last_value=None
         for i, output_path in enumerate(output_paths):
-            cond_audio_path = output_path
-            cond_image = crop_with_ratio_expansion(cond_images[i], 1.0, 1.0, 1.0, 1.0)
-            prompt = prompts[i]
-            if i == 0:
-                generate_output_filename = generate_output_filename.replace(".mp4", f"_{i+1}.mp4")
-            else:
-                generate_output_filename = generate_output_filename.replace(".mp4", f"_{i+1}.mp4")
-            create_and_run_job(job_id, prompt, cond_image, cond_audio_path, generate_output_filename)
+            # ==============Random image for each scene=============
+            choices = [x for x in range(len(prompts)) if x != last_value]  # loại bỏ giá trị lần trước
+            current_value = random.choice(choices)  # chọn ngẫu nhiên
+            print(current_value)
+            last_value = current_value  # lưu 
+            # ===============================================================================
+            print(f"Audio segment {i+1}: {output_path} (Duration: {durations[i]}s)")
+
+            print(cond_images)
+            print(f"Image: {cond_images[current_value]}")
+            print(f"Prompt: {prompts[current_value]}")
+            # clip_name03second=os.path.join(os.getcwd(), f"{job_id}_clip03second_{i}.mp4")
+            clip_name=os.path.join(os.getcwd(), f"{job_id}_clip_{i}.mp4")
+            # print(i)
+            # print(type(current_value))
+            output=await generate_video_cmd(
+                prompt=prompts[current_value],
+                cond_image=cond_images[current_value],# 
+                cond_audio_path=output_path, 
+                output_path=clip_name,
+                job_id=job_id
+            )
+            output_file=cut_video(clip_name, durations[i]-0.3) 
+            results.append(output_file)
+            try:
+                os.remove(output_path)
+            except Exception as e:
+                print(f"❌ Error removing temporary file {output_path}: {str(e)}")
+
+        concat_name=os.path.join(os.getcwd(), f"{job_id}_concat_{i}.mp4")
+        output_file1 = concat_videos(results, concat_name)
+        from merge_video_audio import replace_audio_trimmed
+        output_file = replace_audio_trimmed(output_file1,cond_audio_path,output_path_video)
+        try:
+            os.remove(output_file1)
+            for file in results:
+                os.remove(file)
+        except Exception as e:
+            print(f"❌ Error removing temporary files: {str(e)}")
         return True
     else:
-        print("sdf")
+        generate_output_filename=os.path.join(os.getcwd(), f"{job_id}_noaudio.mp4")
         output=await generate_video_cmd(
             prompt=prompts[0], 
             cond_image=cond_images[0], 
@@ -86,7 +120,12 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path):
             output_path=generate_output_filename,
             job_id=job_id
         )  
-        print("sdf1")
+        from merge_video_audio import replace_audio_trimmed
+        output_file = replace_audio_trimmed(generate_output_filename,cond_audio_path,output_path_video)
+        try:
+            os.remove(generate_output_filename)
+        except Exception as e:
+            print(f"❌ Error removing temporary files: {str(e)}")
         return True
 async def generate_video_cmd(prompt, cond_image, cond_audio_path,output_path,job_id):
     print("sdf2")
@@ -128,7 +167,8 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path,output_path,job
         json.dump(json_data, f, ensure_ascii=False, indent=4)
     print("sdfsdfsdfsdf")    
     cmd = [
-        "python", "generate_multitalk.py",
+        "python", "-u", 
+        "generate_multitalk.py",
         "--ckpt_dir", "weights/Wan2.1-I2V-14B-480P",
         "--wav2vec_dir", "weights/chinese-wav2vec2-base",
         "--input_json", json_filename,
@@ -140,6 +180,7 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path,output_path,job
         "--sample_steps", "8",
         "--size", "multitalk-480",#cần sửa resolution sau này
         "--mode", "streaming",
+        "--num_persistent_param_in_dit","0",
         "--save_file",video_namepadder.replace(".mp4", ""), 
         "--sample_shift", "2"
     ]
@@ -148,9 +189,33 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path,output_path,job
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
+    
+    # stdout, stderr = await process.communicate()
+    async def handle_output():
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            output = line.decode().strip()
+            if output:
+                print(f"📝 {output}")
 
-    # Chờ process chạy xong
-    stdout, stderr = await process.communicate()
+    async def handle_error():
+        while True:
+            line = await process.stderr.readline()
+            if not line:
+                break
+            error = line.decode().strip()
+            if error:
+                print(f"⚠️ {error}")
+
+    # Chạy đồng thời
+    await asyncio.gather(
+        handle_output(),
+        handle_error(),
+        process.wait()
+    )
+
 
     if process.returncode != 0:
         raise RuntimeError(f"Video creation failed: {stderr.decode()}")
@@ -161,9 +226,12 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path,output_path,job
                                 padding_info_path=json_filenamepadder,
                                 output_path=output_path
                             )
-    
-    os.remove(json_filename)
-    os.remove(json_filenamepadder)
-    os.remove(image_namepadder)
+    try:
+        os.remove(json_filename)
+        os.remove(json_filenamepadder)
+        os.remove(image_namepadder)
+        os.remove(video_namepadder)
+    except Exception as e:
+        print(f"❌ Error removing temporary files: {str(e)}")
 
     return output_path

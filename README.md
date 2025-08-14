@@ -99,6 +99,14 @@ pip install -U xformers==0.0.28 --index-url https://download.pytorch.org/whl/cu1
 
 # Install flash attention for optimized performance
 pip install flash-attn==2.6.1 --no-build-isolation
+
+pip install --upgrade pip
+pip install fastapi==0.115.0
+pip install uvicorn[standard]==0.32.0  
+pip install pydantic==2.11.7
+pip install redis==5.2.1
+pip install aiofiles==24.1.0
+pip install python-multipart==0.0.12
 ```
 
 ### 4. Install Core Dependencies
