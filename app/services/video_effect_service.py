@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List
 from app.models.schemas import TransitionEffect, DollyEffect
 import asyncio
-import time
 
 class VideoEffectService:
     def __init__(self):
@@ -18,7 +17,22 @@ class VideoEffectService:
                           dolly_effects: List[DollyEffect] = None,
                           job_id: str = None) -> str:
         """
-        Áp dụng hiệu ứng cho video
+        Áp dụng hiệu ứng cho video - ASYNC version (deprecated, use apply_effects_sync)
+        """
+        return self.apply_effects_sync(
+            video_path, transition_times, transition_effects, 
+            transition_durations, dolly_effects, job_id
+        )
+
+    def apply_effects_sync(self, 
+                          video_path: str,
+                          transition_times: List[float],
+                          transition_effects: List[TransitionEffect],
+                          transition_durations: List[float],
+                          dolly_effects: List[DollyEffect] = None,
+                          job_id: str = None) -> str:
+        """
+        Áp dụng hiệu ứng cho video - SYNC version để chạy trong thread pool
         
         Args:
             video_path: Đường dẫn video input
@@ -55,7 +69,7 @@ class VideoEffectService:
         # - transition_durations: [0.5, 1.0, 0.8, ...] - thời gian hiệu ứng
         # - dolly_effects: list các DollyEffect object với thông tin chi tiết
         # - job_id: ID của job để track progress
-        print("=========================================================")
+        
         print(f"Processing video effects for job {job_id}")
         print(f"Input video: {video_path}")
         print(f"Transition times: {transition_times}")
@@ -63,46 +77,68 @@ class VideoEffectService:
         print(f"Transition durations: {transition_durations}")
         print(f"Dolly effects: {len(dolly_effects or [])} effects")
         print(f"Output will be: {output_path}")
-        
-
+        import time
         time.sleep(7)
-        
-        print("=========================================================")
         # TODO: Thực hiện xử lý video với các hiệu ứng
         # Ví dụ có thể sử dụng:
-        # - FFmpeg với filter complex
+        # - FFmpeg với subprocess.run()  
         # - OpenCV cho xử lý frame by frame
         # - MoviePy cho Python-based video processing
         # - Các library khác...
         
         # Tạm thời copy file để test (XÓA DÒNG NÀY KHI IMPLEMENT THẬT)
-        await self._mock_process_video(video_path, str(output_path), job_id)
+        self._mock_process_video_sync(video_path, str(output_path), job_id)
         
         return str(output_path)
 
-    async def _mock_process_video(self, input_path: str, output_path: str, job_id: str):
+    def _mock_process_video_sync(self, input_path: str, output_path: str, job_id: str):
         """
         Mock function để test - XÓA KHI IMPLEMENT THẬT
         """
         import shutil
+        import time
         
-        # Giả lập thời gian xử lý
-        await asyncio.sleep(2)  # 2 giây để test
+        # Giả lập thời gian xử lý (blocking)
+        time.sleep(2)  # 2 giây để test
         
         # Copy file để có output (chỉ để test)
         shutil.copy2(input_path, output_path)
         print(f"Mock processing completed for job {job_id}")
 
-    async def get_video_duration(self, video_path: str) -> float:
+    def get_video_duration_sync(self, video_path: str) -> float:
         """
-        Lấy duration của video - có thể sử dụng ffprobe hoặc library khác
+        Lấy duration của video - SYNC version để chạy trong thread pool
         """
         
-        # TODO: Implement lấy duration thật
-        # Có thể dùng:
-        # - ffprobe command
-        # - OpenCV cv2.VideoCapture
-        # - MoviePy VideoFileClip
+        # TODO: Implement lấy duration thật với subprocess.run()
+        # Ví dụ:
+        # import subprocess
+        # result = subprocess.run([
+        #     "ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+        #     "-of", "csv=p=0", video_path
+        # ], capture_output=True, text=True)
+        # if result.returncode != 0:
+        #     raise RuntimeError(f"FFprobe failed: {result.stderr}")
+        # return float(result.stdout.strip())
+        
+        # Mock duration cho test
+        return 60.0  # 60 giây
+
+    async def get_video_duration(self, video_path: str) -> float:
+        """
+        Lấy duration của video - sử dụng subprocess để không block
+        """
+        
+        # TODO: Implement lấy duration thật với subprocess
+        # Ví dụ:
+        # process = await asyncio.create_subprocess_exec(
+        #     "ffprobe", "-v", "quiet", "-show_entries", "format=duration", 
+        #     "-of", "csv=p=0", video_path,
+        #     stdout=asyncio.subprocess.PIPE,
+        #     stderr=asyncio.subprocess.PIPE
+        # )
+        # stdout, stderr = await process.communicate()
+        # return float(stdout.decode('utf-8').strip())
         
         # Mock duration cho test
         return 60.0  # 60 giây
