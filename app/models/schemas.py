@@ -74,32 +74,68 @@ class JobStatusResponse(BaseModel):
 #     transition_durations: List[float] = Field(..., description="Thời gian duration từng hiệu ứng (giây)")
 #     dolly_effects: Optional[List[DollyEffect]] = Field(default=[], description="Danh sách hiệu ứng dolly (tùy chọn)")
 class TransitionEffect(str, Enum):
-    FADE = "fade"
-    DISSOLVE = "dissolve"
-    WIPE_LEFT = "wipe_left"
-    WIPE_RIGHT = "wipe_right"
-    SLIDE_UP = "slide_up"
-    SLIDE_DOWN = "slide_down"
-    ZOOM_IN = "zoom_in"
-    ZOOM_OUT = "zoom_out"
+    SLIDE = "slide"
     ROTATE = "rotate"
-    BLUR = "blur"
+    CIRCLE_MASK = "circle_mask"
+    FADE_IN = "fade_in"
+    FADE_OUT = "fade_out"
+    FADEOUT_FADEIN = "fadeout_fadein"
+    CROSSFADE = "crossfade"
+    RGB_SPLIT = "rgb_split"
+    FLIP_HORIZONTAL = "flip_horizontal"
+    FLIP_VERTICAL = "flip_vertical"
+    PUSH_BLUR = "push_blur"
+    SQUEEZE_HORIZONTAL = "squeeze_horizontal"
+    WAVE_DISTORTION = "wave_distortion"
+    ZOOM_BLUR = "zoom_blur"
+    SPIRAL = "spiral"
+    PIXELATE = "pixelate"
+    SHATTER = "shatter"
+    KALEIDOSCOPE = "kaleidoscope"
+    PAGE_TURN = "page_turn"
+    TELEVISION = "television"
+    FILM_BURN = "film_burn"
+    MATRIX_RAIN = "matrix_rain"
+    OLD_FILM = "old_film"
+    MOSAIC_BLUR = "mosaic_blur"
+    LENS_FLARE = "lens_flare"
+    DIGITAL_GLITCH = "digital_glitch"
+    WATERFALL = "waterfall"
+    HONEYCOMB = "honeycomb"
 
 class DollyEffectType(str, Enum):
-    ZOOM_GRADUAL = "zoom_gradual"  # Zoom từ từ
+    AUTO_ZOOM = "auto_zoom"        # Zoom tự động
+    MANUAL_ZOOM = "manual_zoom"    # Zoom thủ công (có tọa độ X, Y)
     DOUBLE_ZOOM = "double_zoom"    # Double zoom
-    ZOOM_IN_OUT = "zoom_in_out"    # Zoom vào rồi ra
-    PAN_ZOOM = "pan_zoom"          # Pan kết hợp zoom
+    # PAN_ZOOM = "pan_zoom"          # Pan kết hợp zoom
+
+# class DollyEffect(BaseModel):
+#     scene_index: int = Field(..., description="Cảnh áp dụng (bắt đầu từ 0)")
+#     start_time: float = Field(..., description="Thời gian bắt đầu (giây)")
+#     duration: float = Field(..., description="Thời gian áp dụng (giây)")
+#     zoom_percent: float = Field(..., ge=10, le=500, description="Zoom bao nhiêu % (10-500%)")
+#     effect_type: DollyEffectType = Field(..., description="Loại hiệu ứng dolly")
+#     x_coordinate: Optional[float] = Field(None, description="Tọa độ X (0-1, tùy chọn)")
+#     y_coordinate: Optional[float] = Field(None, description="Tọa độ Y (0-1, tùy chọn)")
+class DollyEndType(str, Enum):
+    smooth = "smooth"
+    instant = "instant"
 
 class DollyEffect(BaseModel):
-    scene_index: int = Field(..., description="Cảnh áp dụng (bắt đầu từ 0)")
-    start_time: float = Field(..., description="Thời gian bắt đầu (giây)")
-    duration: float = Field(..., description="Thời gian áp dụng (giây)")
-    zoom_percent: float = Field(..., ge=10, le=500, description="Zoom bao nhiêu % (10-500%)")
+    scene_index: int = Field(None, description="Cảnh áp dụng (bắt đầu từ 0)")
+    start_time: float = Field(0.0, description="Thời gian bắt đầu (giây)")
+    duration: float = Field(0.5, description="Thời gian áp dụng (giây)")
+    zoom_percent: float = Field(0, ge=10, le=100, description="Zoom bao nhiêu % (0-100%)")
     effect_type: DollyEffectType = Field(..., description="Loại hiệu ứng dolly")
     x_coordinate: Optional[float] = Field(None, description="Tọa độ X (0-1, tùy chọn)")
     y_coordinate: Optional[float] = Field(None, description="Tọa độ Y (0-1, tùy chọn)")
-
+    
+    end_time: Optional[float] = Field(
+        None, description="Thời gian kết thúc hiệu ứng (giây, tùy chọn)"
+    )
+    end_type: DollyEndType = Field(
+        DollyEndType.smooth, description="Loại kết thúc hiệu ứng: smooth hoặc instant"
+    )
 class VideoEffectRequest(BaseModel):
     video_path: str = Field(..., description="Đường dẫn video input")
     transition_times: List[float] = Field(..., description="Thời điểm chuyển cảnh (giây)")

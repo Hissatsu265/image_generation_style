@@ -38,19 +38,19 @@ class VideoService:
         try:
             
             from app.services.job_service import job_service
-            # await job_service.update_job_status(job_id, "processing", progress=30)
-            # print("dfsdf")
+            await job_service.update_job_status(job_id, "processing", progress=30)
+            print("dfsdf")
 
-            # await run_job(jobid, prompts, image_paths, audio_path, output_path)   
+            await run_job(jobid, prompts, image_paths, audio_path, output_path)   
 
-            # print(f"Video created successfully: {output_path}")
-            # print(f"Job ID: {job_id}, Output Path: {output_path}")
-
-            await asyncio.sleep(2)  
-            await job_service.update_job_status(job_id, "processing", progress=60)
+            print(f"Video created successfully: {output_path}")
+            print(f"Job ID: {job_id}, Output Path: {output_path}")
+            # =====================Test=================================
+            # await asyncio.sleep(2)  
+            # await job_service.update_job_status(job_id, "processing", progress=60)
             
-            await asyncio.sleep(2)  
-            await job_service.update_job_status(job_id, "processing", progress=90)
+            # await asyncio.sleep(2)  
+            # await job_service.update_job_status(job_id, "processing", progress=90)
             
             # ==== END CODE ====
             if output_path.exists():

@@ -332,49 +332,49 @@ def replace_audio(video_path, audio_source_path, output_path):
 
 
 # if __name__ == "__main__":
-    # input_video_path = "/content/restored_video.mp4"
+#     input_video_path = "/workspace/marketing-video-ai/e06b2a6c_clip_1_cut_10.3s.mp4"
     
-    # # Ví dụ 1: Zoom đột ngột với hiệu ứng rung
-    # print("=== Tạo zoom đột ngột với shake effect ===")
-    # create_face_zoom_video(
-    #     input_video=input_video_path,
-    #     output_video="output_instant_zoom_shake.mp4",
-    #     zoom_type="instant",
-    #     zoom_start_time=1,
-    #     zoom_duration=4,
-    #     zoom_factor=1.8,
-    #     enable_shake=True,
-    #     shake_intensity=1,
-    #     shake_start_delay=0.3
-    # )
+#     # Ví dụ 1: Zoom đột ngột với hiệu ứng rung
+#     print("=== Tạo zoom đột ngột với shake effect ===")
+#     create_face_zoom_video(
+#         input_video=input_video_path,
+#         output_video="output_instant_zoom_shake.mp4",
+#         zoom_type="instant",
+#         zoom_start_time=1,
+#         zoom_duration=4,
+#         zoom_factor=1.8,
+#         enable_shake=True,
+#         shake_intensity=1,
+#         shake_start_delay=0.3
+#     )
     
-    # #Ví dụ 2: Zoom từ từ với giữ mức zoom
-    # print("=== Tạo zoom từ từ với giữ mức zoom ===")
-    # create_face_zoom_video(
-    #     input_video=input_video_path,
-    #     output_video="output_gradual_zoom.mp4",
-    #     zoom_type="gradual",
-    #     gradual_start_time=1,
-    #     gradual_end_time=1.5,  # Zoom từ giây 1 đến giây 3
-    #     hold_duration=2,     # Giữ mức zoom trong 2 giây (đến giây 5)
-    #     zoom_factor=1.3
-    # )
+#     #Ví dụ 2: Zoom từ từ với giữ mức zoom
+#     print("=== Tạo zoom từ từ với giữ mức zoom ===")
+#     create_face_zoom_video(
+#         input_video=input_video_path,
+#         output_video="output_gradual_zoom.mp4",
+#         zoom_type="gradual",
+#         gradual_start_time=1,
+#         gradual_end_time=1.5,  # Zoom từ giây 1 đến giây 3
+#         hold_duration=2,     # Giữ mức zoom trong 2 giây (đến giây 5)
+#         zoom_factor=1.3
+#     )
     
-    # # Ví dụ 3: Zoom từ từ với shake effect (chỉ 0.5 giây)
-    # print("=== Tạo zoom từ từ với shake effect ===")
-    # create_face_zoom_video(
-    #     input_video=input_video_path,
-    #     output_video="output_gradual_zoom_shake.mp4",
-    #     zoom_type="gradual",
-    #     gradual_start_time=1,
-    #     gradual_end_time=3,    # Zoom từ giây 1 đến giây 3
-    #     hold_duration=2,       # Giữ mức zoom đến giây 5
-    #     zoom_factor=1.8,
-    #     enable_shake=True,
-    #     shake_intensity=3,
-    #     shake_start_delay=0.2  # Shake bắt đầu sau 0.2s khi zoom xong, kéo dài 0.5s
-    # )
+#     # Ví dụ 3: Zoom từ từ với shake effect (chỉ 0.5 giây)
+#     print("=== Tạo zoom từ từ với shake effect ===")
+#     create_face_zoom_video(
+#         input_video=input_video_path,
+#         output_video="output_gradual_zoom_shake.mp4",
+#         zoom_type="gradual",
+#         gradual_start_time=1,
+#         gradual_end_time=3,    # Zoom từ giây 1 đến giây 3
+#         hold_duration=2,       # Giữ mức zoom đến giây 5
+#         zoom_factor=1.8,
+#         enable_shake=True,
+#         shake_intensity=3,
+#         shake_start_delay=0.2  # Shake bắt đầu sau 0.2s khi zoom xong, kéo dài 0.5s
+#     )
     
-    ## Thay audio
+    # Thay audio
     # output = replace_audio("output_gradual_zoom.mp4", "/content/25_7padd.mp4", "final_output.mp4")
     # print("Video cuối cùng:", output)
