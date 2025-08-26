@@ -6,7 +6,7 @@ from typing import List
 from app.models.schemas import TransitionEffect, DollyEffect, DollyEffectType, DollyEndType
 from animation.full_transition_effect import apply_effect
 from animation.zoomin_at_one_point import apply_zoom_effect
-from animation.zoomin import create_face_zoom_video
+from animation.zoomin import safe_create_face_zoom_video
 
 import asyncio
 
@@ -114,7 +114,7 @@ class VideoEffectService:
         # print(dolly_effects)
         for i, dolly in enumerate(dolly_effects):
             # if i>0:
-            #     video_path = str(output_path)
+            video_path = str(output_path)
             print(f"  Effect {i+1}: type={dolly.effect_type}, start={dolly.start_time}s, duration={dolly.duration}s")
             if dolly.effect_type == DollyEffectType.MANUAL_ZOOM:
                 print(f"    Manual zoom at ({dolly.x_coordinate}, {dolly.y_coordinate}) with zoom percent {dolly.zoom_percent}%")
@@ -136,35 +136,35 @@ class VideoEffectService:
                     zoom_type="instant",
                     zoom_start_time=dolly.start_time,
                     zoom_duration=dolly.end_time-   dolly.start_time,
-                    zoom_factor=1.3,
+                    zoom_factor=2 - dolly.zoom_percent / 100.0,
                     enable_shake=False,
                     shake_intensity=1,
                     shake_start_delay=0.3
                 )
-            elif dolly.effect_type == DollyEffectType.DOUBLE_ZOOM:
-                print(f"    Double zoom with zoom percent {dolly.zoom_percent}%")
-                create_face_zoom_video(
-                    input_video=video_path,
-                    output_video=str(output_path),
-                    zoom_type="instant",
-                    zoom_start_time=dolly.start_time,
-                    zoom_duration=dolly.end_time - dolly.start_time,
-                    zoom_factor=1.3,
-                    enable_shake=False,
-                    shake_intensity=2,
-                    shake_start_delay=0.5
-                )
-                create_face_zoom_video(
-                    input_video=video_path,
-                    output_video=str(output_path),
-                    zoom_type="instant",
-                    zoom_start_time=dolly.start_time+1.0,
-                    zoom_duration=dolly.end_time-   dolly.start_time - 1.0,
-                    zoom_factor=1.3,
-                    enable_shake=False,
-                    shake_intensity=2,
-                    shake_start_delay=0.5
-                )
+            # elif dolly.effect_type == DollyEffectType.DOUBLE_ZOOM:
+            #     print(f"    Double zoom with zoom percent {dolly.zoom_percent}%")
+            #     create_face_zoom_video(
+            #         input_video=video_path,
+            #         output_video=str(output_path),
+            #         zoom_type="instant",
+            #         zoom_start_time=dolly.start_time,
+            #         zoom_duration=dolly.end_time - dolly.start_time,
+            #         zoom_factor=1.3,
+            #         enable_shake=False,
+            #         shake_intensity=2,
+            #         shake_start_delay=0.5
+            #     )
+            #     create_face_zoom_video(
+            #         input_video=video_path,
+            #         output_video=str(output_path),
+            #         zoom_type="instant",
+            #         zoom_start_time=dolly.start_time+1.0,
+            #         zoom_duration=dolly.end_time-   dolly.start_time - 1.0,
+            #         zoom_factor=1.3,
+            #         enable_shake=False,
+            #         shake_intensity=2,
+            #         shake_start_delay=0.5
+            #     )
 
 
 
