@@ -102,6 +102,7 @@ class TransitionEffect(str, Enum):
     DIGITAL_GLITCH = "digital_glitch"
     WATERFALL = "waterfall"
     HONEYCOMB = "honeycomb"
+    NONE="none"
 
 class DollyEffectType(str, Enum):
     AUTO_ZOOM = "auto_zoom"        # Zoom tự động

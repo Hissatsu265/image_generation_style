@@ -7,6 +7,7 @@ from app.models.schemas import TransitionEffect, DollyEffect, DollyEffectType, D
 from animation.full_transition_effect import apply_effect
 from animation.zoomin_at_one_point import apply_zoom_effect
 from animation.zoomin import safe_create_face_zoom_video
+from animation.safe_check import wait_for_file_ready
 
 import asyncio
 
@@ -112,15 +113,18 @@ class VideoEffectService:
         print("Dolly effects processing is currently disabled in the code.")
         print(f"Received {len(dolly_effects)} dolly effects:")
         # print(dolly_effects)
+        wait_for_file_ready(video_path)
         for i, dolly in enumerate(dolly_effects):
             # if i>0:
+            outputpath_raw_eff=output_dir / f"raw_effect_{job_id or uuid.uuid4().hex}_step{i+1}.mp4"
             video_path = str(output_path)
             print(f"  Effect {i+1}: type={dolly.effect_type}, start={dolly.start_time}s, duration={dolly.duration}s")
             if dolly.effect_type == DollyEffectType.MANUAL_ZOOM:
+                wait_for_file_ready(video_path)
                 print(f"    Manual zoom at ({dolly.x_coordinate}, {dolly.y_coordinate}) with zoom percent {dolly.zoom_percent}%")
                 apply_zoom_effect(
                     input_path=video_path,
-                    output_path=str(output_path),
+                    output_path=str(outputpath_raw_eff),
                     zoom_duration=dolly.duration,
                     zoom_start_time=dolly.start_time,
                     zoom_percent=dolly.zoom_percent / 100.0,  # Chuyển đổi sang tỷ lệ
@@ -128,11 +132,11 @@ class VideoEffectService:
                     end_effect=dolly.end_time,  # Kết thúc tại thời gian đã chỉ định
                     remove_mode=dolly.end_type.value  # "smooth" hoặc "instant"
                 )   
-            elif dolly.effect_type == DollyEffectType.AUTO_ZOOM:
+            elif dolly.effect_type == DollyEffectType.AUTO_ZOOM and dolly.end_type.value=="instant":
                 print(f"    Auto zoom with zoom percent {dolly.zoom_percent}%")
-                create_face_zoom_video(
+                safe_create_face_zoom_video(
                     input_video=video_path,
-                    output_video=str(output_path),
+                    output_video=str(outputpath_raw_eff),
                     zoom_type="instant",
                     zoom_start_time=dolly.start_time,
                     zoom_duration=dolly.end_time-   dolly.start_time,
@@ -141,6 +145,28 @@ class VideoEffectService:
                     shake_intensity=1,
                     shake_start_delay=0.3
                 )
+            elif dolly.effect_type == DollyEffectType.AUTO_ZOOM:
+                print(f"    Auto zoom with zoom percent {dolly.zoom_percent}%")
+                safe_create_face_zoom_video(
+                    input_video=video_path,
+                    output_video=str(outputpath_raw_eff),
+                    zoom_type="gradual",
+                    gradual_start_time=dolly.start_time,
+                    gradual_end_time=dolly.start_time+dolly.duration,
+                    # zoom_start_time=dolly.start_time,
+                    hold_duration=dolly.end_time - dolly.start_time,
+                    zoom_factor=2 - dolly.zoom_percent / 100.0,
+                    enable_shake=False,
+                    shake_intensity=1,
+                    shake_start_delay=0.3
+                ) 
+            if os.path.exists(output_path):
+                os.remove(output_path)
+                print(f"Đã xóa file: {output_path}")
+            else:
+                print("File không tồn tại")
+            os.rename(outputpath_raw_eff, output_path)
+    
             # elif dolly.effect_type == DollyEffectType.DOUBLE_ZOOM:
             #     print(f"    Double zoom with zoom percent {dolly.zoom_percent}%")
             #     create_face_zoom_video(

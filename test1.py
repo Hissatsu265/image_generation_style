@@ -7,7 +7,7 @@ from app.models.schemas import TransitionEffect, DollyEffect, DollyEffectType, D
 from animation.full_transition_effect import apply_effect
 from animation.zoomin_at_one_point import apply_zoom_effect
 from animation.zoomin import safe_create_face_zoom_video
-
+from animation.safe_check import wait_for_file_ready
 import asyncio
 
 dolly_effects= [
@@ -22,25 +22,24 @@ dolly_effects= [
       },
       {
         "scene_index": 0,
-        "start_time": 5,
+        "start_time": 6,
         "duration": 2.0,
         "zoom_percent": 50,
         "effect_type": "auto_zoom",
-        "end_time": 5.0,
+        "end_time": 8.0,
         "end_type": "smooth"
       },
-
-    #   {
-    #     "scene_index": 1,
-    #     "start_time": 3.0,
-    #     "duration": 1.5,
-    #     "zoom_percent": 50,
-    #     "effect_type": "manual_zoom",
-    #     "x_coordinate": 100,
-    #     "y_coordinate": 100,
-    #     "end_time": 4.0,
-    #     "end_type": "instant"
-    #   },
+      {
+        "scene_index": 1,
+        "start_time": 3.0,
+        "duration": 1.5,
+        "zoom_percent": 50,
+        "effect_type": "manual_zoom",
+        "x_coordinate": 100,
+        "y_coordinate": 100,
+        "end_time": 8.0,
+        "end_type": "instant"
+      },
     #   {
     #     "scene_index": 1,
     #     "start_time": 5.0,
@@ -55,7 +54,7 @@ dolly_effects= [
 
     ]
 
-video_path="/workspace/marketing-video-ai/55c95f56_clip_0_cut_11.49s.mp4"
+video_path="/root/marketing-video-ai/55c95f56_clip_0_cut_11.49s.mp4"
 job_id="sfsgagfgdfgdfg"
 # if len(transition_times) != len(transition_effects) != len(transition_durations):
 #             raise ValueError("transition_times, transition_effects, transition_durations must have same length")
@@ -84,6 +83,7 @@ for i, dolly in enumerate(dolly_effects):
 
     if dolly["effect_type"] == "manual_zoom":
         print(f"    Manual zoom at ({dolly['x_coordinate']}, {dolly['y_coordinate']}) with zoom percent {dolly['zoom_percent']}%")
+        wait_for_file_ready(video_path)
         apply_zoom_effect(
             input_path=video_path,
             output_path=str(outputpath_raw_eff),
@@ -107,12 +107,12 @@ for i, dolly in enumerate(dolly_effects):
             shake_intensity=1,
             shake_start_delay=0.3
         )
-    # if os.path.exists(output_path):
-    #     os.remove(output_path)
-    #     print(f"Đã xóa file: {output_path}")
-    # else:
-    #     print("File không tồn tại")
-    # os.rename(outputpath_raw_eff, output_path)
+    if os.path.exists(output_path):
+        os.remove(output_path)
+        print(f"Đã xóa file: {output_path}")
+    else:
+        print("File không tồn tại")
+    os.rename(outputpath_raw_eff, output_path)
     
 # print(f"Processing video effects for job {job_id}")
 # print(f"Input video: {video_path}")
