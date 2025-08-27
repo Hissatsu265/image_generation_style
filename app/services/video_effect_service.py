@@ -8,7 +8,6 @@ from animation.full_transition_effect import apply_effect
 from animation.zoomin_at_one_point import apply_zoom_effect
 from animation.zoomin import safe_create_face_zoom_video
 from animation.safe_check import wait_for_file_ready
-
 import asyncio
 
 class VideoEffectService:

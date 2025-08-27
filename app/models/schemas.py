@@ -8,7 +8,12 @@ class Resolution(str, Enum):
     QHD_1440P = "1440"
     UHD_4K = "2160"
     SQUARE_1080 = "1080"  
-    VERTICAL_1080 = "1920"
+    HORIZONTAL_1080="1080x1920"
+    VERTICAL_1080 = "1920x1080"
+    HORIZONTAL_480="480x854"
+    VERTICAL_480 = "854x480"
+    HORIZONTAL_720="720x1280"
+    VERTICAL_720 = "1280x720"
 class JobStatus(str, Enum):
     PENDING = "pending"
     PROCESSING = "processing"

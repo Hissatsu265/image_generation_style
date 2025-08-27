@@ -27,3 +27,6 @@ API_PORT = int(os.getenv("API_PORT", 8000))
 JOB_RETENTION_HOURS = int(os.getenv("JOB_RETENTION_HOURS", 24))  # Giữ job trong 24h
 VIDEO_RETENTION_HOURS = int(os.getenv("VIDEO_RETENTION_HOURS", 72))  # Giữ video trong 72h
 CLEANUP_INTERVAL_MINUTES = int(os.getenv("CLEANUP_INTERVAL_MINUTES", 60))  # Cleanup mỗi 60 phút
+# =======================================
+SERVER_COMFYUI="127.0.0.1:8188"
+WORKFLOW_INFINITETALK_PATH="/home/toan/marketing-video-ai/workflow/wanvideo_infinitetalk_single_example_19_8 (1).json"

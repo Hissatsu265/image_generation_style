@@ -382,7 +382,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import os
-import mediapipe as mp
+# import mediapipe as mp
 import random
 import math
 import time
