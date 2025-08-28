@@ -11,7 +11,7 @@ import aiofiles
 import websockets
 import glob
 import time
-from config import SERVER_COMFYUI,WORKFLOW_INFINITETALK_PATH
+from config import SERVER_COMFYUI,WORKFLOW_INFINITETALK_PATH,BASE_DIR
 
 server_address = SERVER_COMFYUI
 
@@ -107,8 +107,9 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             # print(prompts[current_value])
             # print(cond_images[current_value])
             # print("dfsdfsdfsd:   ", audiohavesecondatstart)
-            audiohavesecondatstart="/home/toan/marketing-video-ai/"+audiohavesecondatstart
-            # print("dfsdfsdfsd:   ", audiohavesecondatstart)
+            audiohavesecondatstart=str(BASE_DIR / audiohavesecondatstart)
+            print("dfsdfsdfsd:   ", audiohavesecondatstart)
+            print(type(audiohavesecondatstart))
             # print(clip_name)
             # print(job_id)
             output=await generate_video_cmd(

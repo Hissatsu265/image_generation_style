@@ -1,105 +1,57 @@
-# MultiTalk Workflow Description
+# Marketing Video AI - API Testing Guide
 
-## Current Features
+This guide provides step-by-step instructions for setting up and testing the Marketing Video AI API.
 
-This workflow creates videos with audio and human portraits, featuring automatic scene transitions using different images.
+## Prerequisites
 
-## Disabled Features
-
-The repository includes code for additional effects that are currently disabled to keep the workflow simple:
-- Transition effects
-- Product zoom-in effects
-
-These can be manually enabled after basic video generation.
-
-## Audio Segmentation
-
-**Default Behavior**: Audio files longer than 5 seconds are automatically split for scene transitions.
-
-**To Change the 5-second Limit**:
-
-1. **File: `divide_audio.py`** - Edit lines 61, 62, and 82
-2. **File: `app2.py`** - Edit lines 800 and 1136
-
-Change `> 5` to your preferred duration (e.g., `> 10` for 10 seconds).
-
-This controls when automatic scene transitions begin based on audio length.
+- Python 3.8+
+- CUDA-compatible GPU (recommended)
+- Git
 
 ## Installation
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repository-url>
-cd <repository-name>
+git clone https://github.com/shohanursobuj/marketing-video-ai.git
+cd marketing-video-ai
+git checkout MinhToan1
 ```
 
-### 2. Install Hugging Face CLI
+### 2. Install Dependencies
+
+Execute the following commands in order:
 
 ```bash
-pip install huggingface_hub[cli]
-```
-
-## Model Download
-
-Download all required models using the Hugging Face CLI:
-
-```bash
-# Download Wan2.1 I2V model (Image-to-Video)
-huggingface-cli download Wan-AI/Wan2.1-I2V-14B-480P --local-dir ./weights/Wan2.1-I2V-14B-480P
-
-# Download Chinese Wav2Vec2 base model
-huggingface-cli download TencentGameMate/chinese-wav2vec2-base --local-dir ./weights/chinese-wav2vec2-base
-
-# Download specific model.safetensors from PR branch
-huggingface-cli download TencentGameMate/chinese-wav2vec2-base model.safetensors --revision refs/pr/1 --local-dir ./weights/chinese-wav2vec2-base
-
-# Download Kokoro voice model
-huggingface-cli download hexgrad/Kokoro-82M --local-dir ./weights/Kokoro-82M
-
-# Download MeiGen MultiTalk model
-huggingface-cli download MeiGen-AI/MeiGen-MultiTalk --local-dir ./weights/MeiGen-MultiTalk
-```
-
-## Model Setup
-
-After downloading, reorganize the model files:
-
-```bash
-# Backup original index file
-mv weights/Wan2.1-I2V-14B-480P/diffusion_pytorch_model.safetensors.index.json weights/Wan2.1-I2V-14B-480P/diffusion_pytorch_model.safetensors.index.json_old
-
-# Copy MultiTalk configuration files
-cp weights/MeiGen-MultiTalk/diffusion_pytorch_model.safetensors.index.json weights/Wan2.1-I2V-14B-480P/
-cp weights/MeiGen-MultiTalk/multitalk.safetensors weights/Wan2.1-I2V-14B-480P/
-```
-
-## Dependencies Installation
-
-### 1. Remove Conflicting Packages
-
-```bash
-# Remove potentially conflicting packages
+# Uninstall conflicting packages
 pip uninstall -y tensorflow jax jaxlib
 pip uninstall -y torch torchvision torchaudio xformers flash-attn
-```
 
-### 2. Install PyTorch with CUDA Support
-
-```bash
-# Install PyTorch 2.4.1 with CUDA 12.1 support
+# Install PyTorch with CUDA support
 pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu121
-```
 
-### 3. Install Additional CUDA Libraries
-
-```bash
-# Install xformers for efficient attention
+# Install xformers and flash-attn
 pip install -U xformers==0.0.28 --index-url https://download.pytorch.org/whl/cu121
-
-# Install flash attention for optimized performance
 pip install flash-attn==2.6.1 --no-build-isolation
 
+# Install ML libraries
+pip install transformers==4.49.0 peft
+pip install accelerate
+
+# Install project requirements
+pip install -r requirements.txt
+
+# Install system dependencies
+apt-get update && apt-get install -y ffmpeg
+
+# Install additional Python packages
+pip install ninja psutil packaging
+
+# Fix numpy version
+pip uninstall numpy
+pip install numpy==1.26.4
+
+# Install web framework dependencies
 pip install --upgrade pip
 pip install fastapi==0.115.0
 pip install uvicorn[standard]==0.32.0  
@@ -107,89 +59,180 @@ pip install pydantic==2.11.7
 pip install redis==5.2.1
 pip install aiofiles==24.1.0
 pip install python-multipart==0.0.12
-```
+pip install protobuf --upgrade
 
-### 4. Install Core Dependencies
-
-```bash
-# Install transformers and related packages
-pip install transformers==4.49.0 peft
-pip install accelerate
-
-# Install project requirements
-pip install -r requirements.txt
-```
-
-### 5. System Dependencies
-
-```bash
-# Install system packages
-apt-get update && apt-get install -y ffmpeg
-
-# Install additional Python packages
-pip install ninja psutil packaging
-pip install soundfile librosa
-pip install misaki[en]
-pip install mediapipe
+# Install media processing libraries
 pip install moviepy==1.0.3
+pip install mediapipe
+pip install mutagen
+pip install redis
 ```
 
-### 6. Fix NumPy Version
+## Running the Server
+
+To start the API server, simply run:
 
 ```bash
-# Ensure correct NumPy version
-pip uninstall numpy
-pip install numpy==1.26.4
+python run.py
 ```
 
-## Usage
+The server will start on `http://localhost:8000`
 
-### Basic Command
+## API Endpoints
 
-Run the MultiTalk workflow with the following command:
+### 1. Create Video
 
+Creates a new video from images and audio.
+
+**Endpoint:** `POST /api/v1/videos/create`
+
+**Request Structure:**
 ```bash
-python app2.py \
-    --quant int8 \
-    --quant_dir weights/MeiGen-MultiTalk \
-    --lora_dir weights/MeiGen-MultiTalk/quant_models/quant_model_int8_FusionX.safetensors \
-    --sample_shift 2
+curl -X POST "http://localhost:8000/api/v1/videos/create" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_paths": ["/home/toan/marketing-video-ai/assets/justin-bieber-cái.JPG","/home/toan/marketing-video-ai/assets/justin-bieber-cái.JPG"],
+    "prompts": ["",""],
+    "audio_path": "/home/toan/marketing-video-ai/audio/oskar_1s.wav",
+    "resolution": "1280x720"
+  }'
 ```
 
-### Low VRAM Environment
+**Parameters:**
+- `image_paths`: Array of image file paths
+- `prompts`: Array of prompts (can be empty strings)
+- `audio_path`: Path to audio file
+- `resolution`: Video resolution (see supported resolutions below)
 
-If your system has limited VRAM, add the following parameter:
+**Supported Resolutions:**
+- `1280x720` (HD)
+- `854x480` (SD)
+- `720x1280` (Vertical HD)
+- `480x854` (Vertical SD)
+- And more...
 
+**Response:**
+Returns a job ID for tracking the video creation progress.
+
+### 2. Check Job Status
+
+Check the status of a video creation job.
+
+**Endpoint:** `GET /api/v1/jobs/{job_id}/status`
+
+**Request Structure:**
 ```bash
-python app2.py \
-    --quant int8 \
-    --quant_dir weights/MeiGen-MultiTalk \
-    --lora_dir weights/MeiGen-MultiTalk/quant_models/quant_model_int8_FusionX.safetensors \
-    --sample_shift 2 \
-    --num_persistent_param_in_dit 0
+curl "http://localhost:8000/api/v1/jobs/<job_id>/status"
 ```
 
-## Command Line Parameters
+Replace `<job_id>` with the actual job ID returned from the create video endpoint.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `--quant` | Quantization method (int8, fp16) | int8 |
-| `--quant_dir` | Directory containing quantized models | - |
-| `--lora_dir` | Path to LoRA model file | - |
-| `--sample_shift` | Sampling shift parameter | 2 |
-| `--num_persistent_param_in_dit` | Memory optimization for low VRAM | 0 (for low VRAM) |
+### 3. Add Video Effects
 
+Apply transition and dolly effects to an existing video.
 
-### Recommended Requirements
-- **GPU**: NVIDIA RTX 3090/4090 or better (24GB+ VRAM)
-- **RAM**: 32GB system memory
-- **Storage**: 200GB
+**Endpoint:** `POST /api/v1/videos/effects`
+
+**Request Structure:**
+```bash
+curl -X POST "http://localhost:8000/api/v1/videos/effects" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "video_path": "/root/marketing-video-ai/55c95f56_clip_0_cut_11.49s.mp4",
+    "transition_times": [2.5, 5.0],
+    "transition_effects": ["slide", "fade_in"],
+    "transition_durations": [0.5, 1.0],
+    "dolly_effects": [
+      {
+        "scene_index": 0,
+        "start_time": 1.5,
+        "duration": 1.0,
+        "zoom_percent": 50,
+        "effect_type": "auto_zoom",
+        "end_time": 5.0
+      },
+      {
+        "scene_index": 1,
+        "start_time": 3.0,
+        "duration": 1.5,
+        "zoom_percent": 50,
+        "effect_type": "manual_zoom",
+        "x_coordinate": 100,
+        "y_coordinate": 100,
+        "end_time": 6.0,
+        "end_type": "smooth"
+      }
+    ]
+  }'
+```
+
+**Parameters:**
+
+#### Transition Effects
+- `transition_times`: Array of times when transitions occur
+- `transition_effects`: Array of transition effect names
+- `transition_durations`: Array of transition durations
+
+#### Dolly Effects
+- `scene_index`: Index of the scene to apply effect
+- `start_time`: When the effect starts
+- `duration`: Duration of the effect
+- `zoom_percent`: Zoom percentage
+- `effect_type`: Type of zoom effect (`auto_zoom` or `manual_zoom`)
+- `end_time`: When the effect ends
+- `x_coordinate`, `y_coordinate`: Target coordinates (for manual zoom)
+- `end_type`: End transition type (`instant` or `smooth`)
+
+## Available Transition Effects
+
+The following transition effects are supported:
+
+- `slide` - Slide transition
+- `rotate` - Rotation effect
+- `circle_mask` - Circular mask transition
+- `fade_in` - Fade in effect
+- `fade_out` - Fade out effect
+- `fadeout_fadein` - Combined fade out and fade in
+- `crossfade` - Cross fade between scenes
+- `rgb_split` - RGB color split effect
+- `flip_horizontal` - Horizontal flip
+- `flip_vertical` - Vertical flip
+- `push_blur` - Push with blur effect
+- `squeeze_horizontal` - Horizontal squeeze
+- `wave_distortion` - Wave distortion effect
+- `zoom_blur` - Zoom with blur
+- `spiral` - Spiral transition
+- `pixelate` - Pixelation effect
+- `shatter` - Shatter effect
+- `kaleidoscope` - Kaleidoscope effect
+- `page_turn` - Page turning effect
+- `television` - TV static effect
+- `film_burn` - Film burn effect
+- `matrix_rain` - Matrix rain effect
+- `old_film` - Old film effect
+- `mosaic_blur` - Mosaic blur effect
+- `lens_flare` - Lens flare effect
+- `digital_glitch` - Digital glitch effect
+- `waterfall` - Waterfall effect
+- `honeycomb` - Honeycomb pattern effect
+- `none` - No transition effect
+
+## End Types
+
+For dolly effects, the following end types are available:
+- `instant` - Immediate transition
+- `smooth` - Gradual transition
 
 ## Troubleshooting
 
-### Common Issues
+1. **CUDA Issues**: Ensure you have a CUDA-compatible GPU and the correct CUDA version installed
+2. **Memory Issues**: Close other applications if you encounter out-of-memory errors
+3. **File Paths**: Use absolute paths for image and audio files
+4. **Dependencies**: If you encounter import errors, try reinstalling the specific package
 
-1. **CUDA Out of Memory**
-   - Add `--num_persistent_param_in_dit 0` to the command
-   - Reduce batch size if applicable
-   - Close other GPU-intensive applications
+## Notes
+
+- Make sure all file paths in your requests point to existing files
+- The server needs to be running before making API calls
+- Video processing may take some time depending on the complexity and your hardware
+- Monitor the job status endpoint to track progress
