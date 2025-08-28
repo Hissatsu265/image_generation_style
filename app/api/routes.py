@@ -86,17 +86,15 @@ async def create_video(request: VideoCreateRequest):
 
 @router.get("/jobs/{job_id}/status", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
-    """Lấy trạng thái job - Non-blocking"""
     
     job_data = await job_service.get_job_status(job_id)
-    
+    print("Job data:", job_data)
     if not job_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job not found"
         )
     
-    # Thêm thông tin queue nếu job đang pending
     if job_data["status"] == JobStatus.PENDING:
         queue_info = await job_service.get_queue_info()
         job_data["queue_position"] = job_data.get("queue_position", 0)

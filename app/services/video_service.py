@@ -37,7 +37,6 @@ class VideoService:
         self.output_dir = OUTPUT_DIR
 
     def generate_output_filename(self) -> str:
-        """Tạo tên file output unique"""
         unique_id = str(uuid.uuid4())[:8]
         timestamp = int(asyncio.get_event_loop().time())
         return unique_id, f"video_{timestamp}_{unique_id}.mp4"
@@ -45,14 +44,14 @@ class VideoService:
     async def create_video(self, image_paths: List[str], prompts: List[str], audio_path: str, resolution: str, job_id: str) -> str:
         jobid, output_filename = self.generate_output_filename()
         output_path = self.output_dir / output_filename
-        print("fdfsdfsdf")
+        # print("fdfsdfsdf")
         try:
             
             from app.services.job_service import job_service
             await job_service.update_job_status(job_id, "processing", progress=30)
-            print("dfsdf")
+            # print("dfsdf")
 
-            await run_job(jobid, prompts, image_paths, audio_path, output_path,resolution)   
+            list_scene = await run_job(jobid, prompts, image_paths, audio_path, output_path,resolution)   
 
             print(f"Video created successfully: {output_path}")
             print(f"Job ID: {job_id}, Output Path: {output_path}")
@@ -65,7 +64,7 @@ class VideoService:
             
             # ==== END CODE ====
             if output_path.exists():
-                return str(output_path)
+                return str(output_path),list_scene
             else:
                 raise Exception("Video creation failed - output file not found")
                 
@@ -77,6 +76,7 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
     print("resolution: ",resolution)
     generate_output_filename = output_path_video
     # print("sdf2")
+    list_scene=[]
     if get_audio_duration(cond_audio_path) > 15:
     # if False:
         output_directory = "output_segments"
@@ -85,10 +85,12 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         results=[]
         last_value=None
         for i, output_path in enumerate(output_paths):
+            if i<len(output_paths)-1:
+                list_scene.append(get_audio_duration(output_path))
             # ==============Random image for each scene=============
             choices = [x for x in range(len(prompts)) if x != last_value] 
             current_value = random.choice(choices)  # chọn ngẫu nhiên
-            print(current_value)
+            # print(current_value)
             last_value = current_value  # lưu 
             # ===============================================================================
             print(f"Audio segment {i+1}: {output_path} (Duration: {durations[i]}s)")
@@ -99,16 +101,16 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             clip_name=os.path.join(os.getcwd(), f"{job_id}_clip_{i}.mp4")
             # print(i)
             # print(type(current_value))
-            audiohavesecondatstart = add_silence_to_start(output_path, job_id, duration_ms=500)
+            audiohavesecondatstart = add_silence_to_start(output_path, job_id, duration_ms=0)
             # if wait_for_audio_ready(audiohavesecondatstart, min_size_mb=0.02, max_wait_time=60, min_duration=2.0):
             #     print("Detailed check passed!")
-            print(prompts[current_value])
-            print(cond_images[current_value])
-            print("dfsdfsdfsd:   ", audiohavesecondatstart)
+            # print(prompts[current_value])
+            # print(cond_images[current_value])
+            # print("dfsdfsdfsd:   ", audiohavesecondatstart)
             audiohavesecondatstart="/home/toan/marketing-video-ai/"+audiohavesecondatstart
-            print("dfsdfsdfsd:   ", audiohavesecondatstart)
-            print(clip_name)
-            print(job_id)
+            # print("dfsdfsdfsd:   ", audiohavesecondatstart)
+            # print(clip_name)
+            # print(job_id)
             output=await generate_video_cmd(
                 prompt=prompts[current_value],
                 cond_image=cond_images[current_value],# 
@@ -117,14 +119,15 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
                 job_id=job_id,
                 resolution=resolution
             )
-            tempt=trim_video_start(clip_name, duration=0.5)
-            output_file=cut_video(clip_name, durations[i]-0.5) 
+            trim_video_start(clip_name, duration=0.5)
+            output_file=cut_video(clip_name, get_audio_duration(output_path)-0.5) 
             results.append(output_file)
-            # try:
-            #     os.remove(output_path)
-            #     os.remove(audiohavesecondatstart)
-            # except Exception as e:
-            #     print(f"❌ Error removing temporary file {output_path}: {str(e)}")
+            try:
+                os.remove(output_path)
+                os.remove(clip_name)
+                os.remove(audiohavesecondatstart)
+            except Exception as e:
+                print(f"❌ Error removing temporary file {output_path}: {str(e)}")
 
         concat_name=os.path.join(os.getcwd(), f"{job_id}_concat_{i}.mp4")
         output_file1 = concat_videos(results, concat_name)
@@ -136,7 +139,7 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
                 os.remove(file)
         except Exception as e:
             print(f"❌ Error removing temporary files: {str(e)}")
-        return True
+        return list_scene
     else:
         audiohavesecondatstart = add_silence_to_start(cond_audio_path, job_id, duration_ms=500)
         generate_output_filename=os.path.join(os.getcwd(), f"{job_id}_noaudio.mp4")
@@ -161,7 +164,7 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             os.remove(audiohavesecondatstart)
         except Exception as e:
             print(f"❌ Error removing temporary files: {str(e)}")
-        return True
+        return list_scene
 # ============================================================================================
 
 
@@ -218,8 +221,9 @@ async def wait_for_completion(prompt_id, client_id):
                         
                         elif data["type"] == "executing":
                             node_id = data["data"]["node"]
-                            current_prompt_id = data["data"]["prompt_id"]
-                            
+                            # current_prompt_id = data["data"]["prompt_id"]
+                            current_prompt_id = data.get("data", {}).get("prompt_id")
+
                             if current_prompt_id == prompt_id:
                                 if node_id is None:
                                     print("🎉 Workflow hoàn thành!")
@@ -327,9 +331,23 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
     if resolution == "1080x1920":
         workflow["211"]["inputs"]["value"] = 1080
         workflow["212"]["inputs"]["value"] = 1920
-    
-    workflow["211"]["inputs"]["value"] = 448
-    workflow["212"]["inputs"]["value"] = 448
+    elif resolution=="720x1280":
+        workflow["211"]["inputs"]["value"] = 720
+        workflow["212"]["inputs"]["value"] = 1280
+        workflow["208"]["inputs"]["frame_window_size"] = 41
+    elif resolution=="480x854": 
+        workflow["211"]["inputs"]["value"] = 480
+        workflow["212"]["inputs"]["value"] = 854
+    elif resolution=="854x480": 
+        workflow["211"]["inputs"]["value"] = 854
+        workflow["212"]["inputs"]["value"] = 480
+    elif resolution=="1280x720":    
+        workflow["211"]["inputs"]["value"] = 1280
+        workflow["212"]["inputs"]["value"] = 720    
+        workflow["208"]["inputs"]["frame_window_size"] = 41
+    else:
+        workflow["211"]["inputs"]["value"] = 448
+        workflow["212"]["inputs"]["value"] = 448
 
     prefix = job_id
     workflow["131"]["inputs"]["filename_prefix"] = prefix

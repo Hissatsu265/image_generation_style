@@ -297,7 +297,6 @@ class JobService:
             return 0
 
     async def update_job_status(self, job_id: str, status: JobStatus, **kwargs):
-        """Cập nhật trạng thái job - NON-BLOCKING"""
         if job_id in self.jobs:
             self.jobs[job_id]["status"] = status
             for key, value in kwargs.items():
@@ -306,7 +305,6 @@ class JobService:
             if status == JobStatus.COMPLETED or status == JobStatus.FAILED:
                 self.jobs[job_id]["completed_at"] = datetime.now().isoformat()
             
-            # Cập nhật Redis không block
             if self.redis_client:
                 asyncio.create_task(self._update_job_in_redis(job_id))
 
@@ -322,7 +320,6 @@ class JobService:
             print(f"Error updating job in Redis: {e}")
 
     async def process_jobs(self):
-        """Worker xử lý jobs trong queue - chạy trong background"""
         print("Job worker started")
         
         while True:
@@ -333,7 +330,6 @@ class JobService:
                 
                 print(f"Processing job: {job_id}")
                 
-                # Acquire lock để đảm bảo chỉ 1 video được tạo tại 1 thời điểm
                 async with self.video_processing_lock:
                     self.current_processing_job = job_id
                     
@@ -344,22 +340,22 @@ class JobService:
                     from app.services.video_service import VideoService
                     video_service = VideoService()
                     
-                    # Xử lý video - đây là phần blocking
                     try:
                         print(f"Creating video for job: {job_id}")
-                        video_path = await video_service.create_video(
+                        video_path, list_scene = await video_service.create_video(
                             image_paths=job_data["image_paths"],
                             prompts=job_data["prompts"],
                             audio_path=job_data["audio_path"],
                             resolution=job_data["resolution"],
                             job_id=job_id
                         )
-                        
+                        print("fsfssfsdfsfs: ", list_scene)
                         await self.update_job_status(
                             job_id, 
                             JobStatus.COMPLETED, 
                             progress=100,
-                            video_path=video_path
+                            video_path=video_path,
+                            list_scene=list_scene
                         )
                         
                         print(f"Job completed: {job_id}")
@@ -375,7 +371,6 @@ class JobService:
                     finally:
                         self.current_processing_job = None
                 
-                # Đánh dấu task hoàn thành
                 self.job_queue.task_done()
                 
             except Exception as e:

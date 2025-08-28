@@ -39,7 +39,7 @@ class JobStatusResponse(BaseModel):
     error_message: Optional[str] = None
     created_at: str
     completed_at: Optional[str] = None
-    
+    list_scene: Optional[List[float]] = None 
     queue_position: Optional[int] = None
     estimated_wait_time: Optional[int] = None
     is_processing: Optional[bool] = None
