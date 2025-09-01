@@ -27,6 +27,7 @@ from animation.zoomin import create_face_zoom_video
 from keepratio import ImagePadder
 from audio_processing_infinite import trim_video_start,add_silence_to_start
 from check_audio_safe import wait_for_audio_ready
+from paddvideo import add_green_background,replace_green_screen
 # from app.services.create_video_infinitetalk import load_workflow,wait_for_completion,queue_prompt,find_latest_video
 import asyncio
 
@@ -134,6 +135,10 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         output_file1 = concat_videos(results, concat_name)
         from merge_video_audio import replace_audio_trimmed
         output_file = replace_audio_trimmed(output_file1,cond_audio_path,output_path_video)
+        replace_green_screen(
+            video_path=output_path_video,
+            background_path=None,  
+        )
         try:
             os.remove(output_file1)
             for file in results:
@@ -165,6 +170,12 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             os.remove(audiohavesecondatstart)
         except Exception as e:
             print(f"❌ Error removing temporary files: {str(e)}")
+        
+        replace_green_screen(
+            video_path=output_path_video,
+            background_path=None,  
+        )
+
         return list_scene
 # ============================================================================================
 
@@ -328,27 +339,28 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
         workflow["135"]["inputs"]["positive_prompt"] = prompt
         
     workflow["135"]["inputs"]["negative_prompt"] = "change perspective, bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
-    
+    wf_h=448
+    wf_w=448
     if resolution == "1080x1920":
-        workflow["211"]["inputs"]["value"] = 1080
-        workflow["212"]["inputs"]["value"] = 1920
+        wf_w = 1080
+        wf_h = 1920
     elif resolution=="720x1280":
-        workflow["211"]["inputs"]["value"] = 720
-        workflow["212"]["inputs"]["value"] = 1280
+        wf_w = 720
+        wf_h = 1280
         workflow["208"]["inputs"]["frame_window_size"] = 41
     elif resolution=="480x854": 
-        workflow["211"]["inputs"]["value"] = 480
-        workflow["212"]["inputs"]["value"] = 854
+        wf_w = 480
+        wf_h = 854
     elif resolution=="854x480": 
-        workflow["211"]["inputs"]["value"] = 854
-        workflow["212"]["inputs"]["value"] = 480
+        wf_w = 854
+        wf_h = 480
     elif resolution=="1280x720":    
-        workflow["211"]["inputs"]["value"] = 1280
-        workflow["212"]["inputs"]["value"] = 720    
+        wf_w = 1280
+        wf_h = 720    
         workflow["208"]["inputs"]["frame_window_size"] = 41
-    else:
-        workflow["211"]["inputs"]["value"] = 448
-        workflow["212"]["inputs"]["value"] = 448
+
+    workflow["211"]["inputs"]["value"] = wf_w    
+    workflow["212"]["inputs"]["value"] = wf_h
 
     prefix = job_id
     workflow["131"]["inputs"]["filename_prefix"] = prefix
@@ -370,12 +382,15 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
     video_path = await find_latest_video(prefix)
     
     if video_path:
+        await add_green_background(video_path, str(video_path.replace(".mp4", "_greenbg.mp4")), target_w=wf_w, target_h=wf_h)
+        await delete_file_async(video_path)
+        video_path = str(video_path.replace(".mp4", "_greenbg.mp4"))
         print(f"🎬 Video được tạo tại: {video_path}")
         file_size = os.path.getsize(video_path)
         print(f"📏 Kích thước file: {file_size / (1024*1024):.2f} MB")
         
-        # Di chuyển file bất đồng bộ
         await move_file_async(video_path, output_path)
+
         return output_path
     else:
         print("❌ Không tìm thấy video")
@@ -387,7 +402,13 @@ async def move_file_async(src_path, dst_path):
     
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, move_file)
-
+async def delete_file_async(file_path: str):
+    def delete_file():
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, delete_file)
 # ========== Cần cài đặt dependencies ==========
 """
 pip install aiohttp aiofiles websockets
