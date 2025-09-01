@@ -25,6 +25,7 @@ class VideoCreateRequest(BaseModel):
     prompts: List[str]
     audio_path: str
     resolution: Resolution = Resolution.HD_720P
+    background: str
 
 class VideoCreateResponse(BaseModel):
     job_id: str

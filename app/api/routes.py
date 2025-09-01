@@ -15,9 +15,7 @@ router = APIRouter(prefix="/api/v1", tags=["video"])
 
 @router.post("/videos/create", response_model=VideoCreateResponse)
 async def create_video(request: VideoCreateRequest):
-    """Tạo video từ ảnh, prompt và audio - Non-blocking"""
     
-    # Validate input
     if len(request.image_paths) != len(request.prompts):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -64,7 +62,8 @@ async def create_video(request: VideoCreateRequest):
             image_paths=request.image_paths,
             prompts=request.prompts,
             audio_path=request.audio_path,
-            resolution=request.resolution  
+            resolution=request.resolution,
+            background=request.background  
         )
         
         # Lấy thông tin queue để trả về cho user
@@ -75,7 +74,7 @@ async def create_video(request: VideoCreateRequest):
             status=JobStatus.PENDING,
             message=f"Job created successfully. Position in queue: {queue_info['pending_jobs']}",
             queue_position=queue_info['pending_jobs'],
-            estimated_wait_time=queue_info['pending_jobs'] * 5  # Ước tính 5 phút/job
+            estimated_wait_time=queue_info['pending_jobs'] * 5  
         )
         
     except Exception as e:

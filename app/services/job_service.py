@@ -192,7 +192,7 @@ class JobService:
         await self.cleanup_old_videos()
         return {"message": "Manual cleanup completed"}
 
-    async def create_job(self, image_paths: list, prompts: list, audio_path: str, resolution: str = "1920x1080") -> str:
+    async def create_job(self, image_paths: list, prompts: list, audio_path: str, resolution: str = "1920x1080", background: str | None = None) -> str:
         """Tạo job mới và thêm vào queue - NON-BLOCKING"""
         job_id = str(uuid.uuid4())
         
@@ -203,6 +203,7 @@ class JobService:
             "prompts": prompts,
             "audio_path": audio_path,
             "resolution": resolution,
+            "background": background,
             "progress": 0,
             "video_path": None,
             "error_message": None,
@@ -347,7 +348,8 @@ class JobService:
                             prompts=job_data["prompts"],
                             audio_path=job_data["audio_path"],
                             resolution=job_data["resolution"],
-                            job_id=job_id
+                            job_id=job_id,
+                            background=job_data.get("background", None)
                         )
                         print("fsfssfsdfsfs: ", list_scene)
                         await self.update_job_status(

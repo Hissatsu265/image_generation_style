@@ -12,7 +12,7 @@ import websockets
 import glob
 import time
 from config import SERVER_COMFYUI,WORKFLOW_INFINITETALK_PATH,BASE_DIR
-
+from PIL import Image
 server_address = SERVER_COMFYUI
 
 from divide_audio import process_audio_file
@@ -42,7 +42,7 @@ class VideoService:
         timestamp = int(asyncio.get_event_loop().time())
         return unique_id, f"video_{timestamp}_{unique_id}.mp4"
 
-    async def create_video(self, image_paths: List[str], prompts: List[str], audio_path: str, resolution: str, job_id: str) -> str:
+    async def create_video(self, image_paths: List[str], prompts: List[str], audio_path: str, resolution: str, job_id: str,background:None) -> str:
         jobid, output_filename = self.generate_output_filename()
         output_path = self.output_dir / output_filename
         # print("fdfsdfsdf")
@@ -52,7 +52,7 @@ class VideoService:
             await job_service.update_job_status(job_id, "processing", progress=30)
             # print("dfsdf")
 
-            list_scene = await run_job(jobid, prompts, image_paths, audio_path, output_path,resolution)   
+            list_scene = await run_job(jobid, prompts, image_paths, audio_path, output_path,resolution,background)   
 
             print(f"Video created successfully: {output_path}")
             print(f"Job ID: {job_id}, Output Path: {output_path}")
@@ -73,7 +73,7 @@ class VideoService:
             if output_path.exists():
                 output_path.unlink()
             raise e
-async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_video,resolution):
+async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_video,resolution,background):
     print("resolution: ",resolution)
     generate_output_filename = output_path_video
     # print("sdf2")
@@ -136,8 +136,8 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         from merge_video_audio import replace_audio_trimmed
         output_file = replace_audio_trimmed(output_file1,cond_audio_path,output_path_video)
         replace_green_screen(
-            video_path=output_path_video,
-            background_path=None,  
+            video_path=str(output_path_video),
+            background_path=background,  
         )
         try:
             os.remove(output_file1)
@@ -170,11 +170,12 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             os.remove(audiohavesecondatstart)
         except Exception as e:
             print(f"❌ Error removing temporary files: {str(e)}")
-        
+        # print("sdf5")
         replace_green_screen(
-            video_path=output_path_video,
-            background_path=None,  
+            video_path=str(output_path_video),
+            background_path=background,  
         )
+        # print("sdf6")
 
         return list_scene
 # ============================================================================================
@@ -292,7 +293,7 @@ async def wait_for_completion_fallback(prompt_id):
             return False
 
 # ========== Hàm tìm video mới nhất bất đồng bộ ==========
-async def find_latest_video(prefix, output_dir="/home/toan/ComfyUI/output"):    
+async def find_latest_video(prefix, output_dir=str(BASE_DIR / "ComfyUI/output")):    
     # Chạy file operations trong executor để không block event loop
     def _find_files():
         patterns = [
@@ -328,7 +329,12 @@ async def find_latest_video(prefix, output_dir="/home/toan/ComfyUI/output"):
 async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, job_id,resolution):
 
     print("🔄 Đang load workflow...")
-    workflow = await load_workflow(WORKFLOW_INFINITETALK_PATH)
+    # print("WORKFLOW_INFINITETALK_PATH: ",WORKFLOW_INFINITETALK_PATH)
+    # print(type(WORKFLOW_INFINITETALK_PATH))
+    # print(BASE_DIR)
+    # print(type(BASE_DIR))
+    # print(BASE_DIR / WORKFLOW_INFINITETALK_PATH)
+    workflow = await load_workflow(str(BASE_DIR) + "/" + WORKFLOW_INFINITETALK_PATH)
     
     workflow["203"]["inputs"]["image"] = cond_image
     workflow["125"]["inputs"]["audio"] = cond_audio_path
@@ -347,7 +353,7 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
     elif resolution=="720x1280":
         wf_w = 720
         wf_h = 1280
-        workflow["208"]["inputs"]["frame_window_size"] = 41
+        # workflow["208"]["inputs"]["frame_window_size"] = 41
     elif resolution=="480x854": 
         wf_w = 480
         wf_h = 854
@@ -357,10 +363,15 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
     elif resolution=="1280x720":    
         wf_w = 1280
         wf_h = 720    
-        workflow["208"]["inputs"]["frame_window_size"] = 41
+        # workflow["208"]["inputs"]["frame_window_size"] = 41
+    img = Image.open(cond_image)
+    width_real, height_real = img.size
+    # workflow["211"]["inputs"]["value"] = width_real
+    # workflow["212"]["inputs"]["value"] = height_real
 
-    workflow["211"]["inputs"]["value"] = wf_w    
-    workflow["212"]["inputs"]["value"] = wf_h
+    workflow["211"]["inputs"]["value"] = 608
+    workflow["212"]["inputs"]["value"] = 608
+    img.close()
 
     prefix = job_id
     workflow["131"]["inputs"]["filename_prefix"] = prefix
@@ -389,8 +400,8 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
         file_size = os.path.getsize(video_path)
         print(f"📏 Kích thước file: {file_size / (1024*1024):.2f} MB")
         
-        await move_file_async(video_path, output_path)
-
+        await move_file_async(str(video_path),str(output_path))
+        print("dfsdfs-----")
         return output_path
     else:
         print("❌ Không tìm thấy video")
@@ -409,117 +420,3 @@ async def delete_file_async(file_path: str):
     
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, delete_file)
-# ========== Cần cài đặt dependencies ==========
-"""
-pip install aiohttp aiofiles websockets
-"""
-
-
-    # ======================================================================================
-    # print("sdf2")
-    # generate_output_filename = output_path
-    # print(generate_output_filename)
-    # # json_filename = generate_output_filename.replace(".mp4", ".json")
-    # json_filename=os.path.join(os.getcwd(), f"{job_id}_filenamejson.json")
-    # print("prompt")
-    # print(cond_image)
-    # print(cond_audio_path)
-    # print(output_path)
-    # print(job_id)
-    # # ======================================================
-    # json_filenamepadder = os.path.join(os.getcwd(), f"{job_id}_padder.json")
-    # image_namepadder = os.path.join(os.getcwd(), f"{job_id}_padder.jpg")
-    # video_namepadder = os.path.join(os.getcwd(), f"{job_id}_padder.mp4")
-    # print(json_filenamepadder)
-    # print(image_namepadder)
-    # print(video_namepadder)
-    # k="627"
-    # # if user_input['resolution'] == 'multitalk-720': k="960"
-    # info,output_path1 = padder.pad_image(
-    #     image_path=cond_image,
-    #     ratio_type=k, 
-    #     output_path=image_namepadder,
-    #     info_path=json_filenamepadder
-    # )
-
-    # json_data = {
-    #     "prompt": prompt,
-    #     "cond_image": image_namepadder,
-    #     "cond_audio": {
-    #         "person1": cond_audio_path
-    #     }
-    # }
-    # # =========================================================
-    # os.makedirs(os.path.dirname(json_filename), exist_ok=True)
-    # with open(json_filename, "w", encoding="utf-8") as f:
-    #     json.dump(json_data, f, ensure_ascii=False, indent=4)
-    # print("sdfsdfsdfsdf")    
-    # cmd = [
-    #     "python", "-u", 
-    #     "generate_multitalk.py",
-    #     "--ckpt_dir", "weights/Wan2.1-I2V-14B-480P",
-    #     "--wav2vec_dir", "weights/chinese-wav2vec2-base",
-    #     "--input_json", json_filename,
-    #     "--quant", "int8",
-    #     "--quant_dir", "weights/MeiGen-MultiTalk",
-    #     "--lora_dir", "weights/MeiGen-MultiTalk/quant_models/quant_model_int8_FusionX.safetensors",
-    #     "--sample_text_guide_scale", "1.0",
-    #     "--sample_audio_guide_scale", "2.0",
-    #     "--sample_steps", "8",
-    #     "--size", "multitalk-480",#cần sửa resolution sau này
-    #     "--mode", "streaming",
-    #     "--num_persistent_param_in_dit","0",
-    #     "--save_file",video_namepadder.replace(".mp4", ""), 
-    #     "--sample_shift", "2"
-    # ]
-    # process = await asyncio.create_subprocess_exec(
-    #     *cmd,
-    #     stdout=asyncio.subprocess.PIPE,
-    #     stderr=asyncio.subprocess.PIPE
-    # )
-    
-    # # stdout, stderr = await process.communicate()
-    # async def handle_output():
-    #     while True:
-    #         line = await process.stdout.readline()
-    #         if not line:
-    #             break
-    #         output = line.decode().strip()
-    #         if output:
-    #             print(f"📝 {output}")
-
-    # async def handle_error():
-    #     while True:
-    #         line = await process.stderr.readline()
-    #         if not line:
-    #             break
-    #         error = line.decode().strip()
-    #         if error:
-    #             print(f"⚠️ {error}")
-
-    # # Chạy đồng thời
-    # await asyncio.gather(
-    #     handle_output(),
-    #     handle_error(),
-    #     process.wait()
-    # )
-
-
-    # if process.returncode != 0:
-    #     raise RuntimeError(f"Video creation failed: {stderr.decode()}")
-    # print("========================================================================")
-
-    # restored_video = padder.restore_video_ratio(
-    #                             video_path=video_namepadder,
-    #                             padding_info_path=json_filenamepadder,
-    #                             output_path=output_path
-    #                         )
-    # try:
-    #     os.remove(json_filename)
-    #     os.remove(json_filenamepadder)
-    #     os.remove(image_namepadder)
-    #     os.remove(video_namepadder)
-    # except Exception as e:
-    #     print(f"❌ Error removing temporary files: {str(e)}")
-
-    # return output_path
