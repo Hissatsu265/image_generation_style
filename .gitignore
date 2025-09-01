@@ -1,1 +1,3 @@
 ComfyUI/models/
+__pycache__/
+*.pyc
