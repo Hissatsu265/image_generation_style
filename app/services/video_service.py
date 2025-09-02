@@ -78,8 +78,8 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
     generate_output_filename = output_path_video
     # print("sdf2")
     list_scene=[]
-    if get_audio_duration(cond_audio_path) > 15:
-    # if False:
+    # if get_audio_duration(cond_audio_path) > 15 :
+    if False:
         output_directory = "output_segments"
         os.makedirs(output_directory, exist_ok=True)
         output_paths,durations, result = process_audio_file(cond_audio_path, output_directory)
@@ -199,8 +199,8 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         tempt=trim_video_start(generate_output_filename, duration=0.5)
         output_file = replace_audio_trimmed(generate_output_filename,cond_audio_path,output_path_video)
         try:
-            os.remove(generate_output_filename)
-            os.remove(audiohavesecondatstart)
+            os.remove(str(generate_output_filename))
+            os.remove(str(audiohavesecondatstart))
             os.remove(str(pad_file))
             os.remove(str(crop_file))
         except Exception as e:
@@ -215,7 +215,28 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         return list_scene
 # ============================================================================================
 
+import asyncio
+import signal
 
+async def start_comfyui():
+    process = await asyncio.create_subprocess_exec(
+        "python3", "main.py",
+        cwd=str(BASE_DIR / "ComfyUI"),  # chỗ chứa main.py
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    print("🚀 ComfyUI started (PID:", process.pid, ")")
+    return process
+async def stop_comfyui(process):
+    if process and process.returncode is None:
+        print("🛑 Stopping ComfyUI...")
+        process.terminate()
+        try:
+            await asyncio.wait_for(process.wait(), timeout=10)
+        except asyncio.TimeoutError:
+            print("⚠️ Force killing ComfyUI...")
+            process.kill()
+            await process.wait()
 async def load_workflow(path="workflow.json"):
     """Load workflow file bất đồng bộ"""
     async with aiofiles.open(path, "r", encoding='utf-8') as f:
@@ -361,90 +382,95 @@ async def find_latest_video(prefix, output_dir=str(BASE_DIR / "ComfyUI/output"))
 
 # ========== Hàm chính được cập nhật ==========
 async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, job_id,resolution):
+    comfy_process = await start_comfyui()
+    await asyncio.sleep(15)  # đợi server ComfyUI khởi động (có thể tăng nếu load model chậm)
 
-    print("🔄 Đang load workflow...")
+    try:
+        print("🔄 Đang load workflow...")
 
-    workflow = await load_workflow(str(BASE_DIR) + "/" + WORKFLOW_INFINITETALK_PATH)
-    # ============================================================
-    # await crop_green_background(cond_image, str(cond_image.replace(".png", "_crop.png")))
-    workflow["203"]["inputs"]["image"] = cond_image
-    # =============================================================
-    workflow["125"]["inputs"]["audio"] = cond_audio_path
-    
-    if prompt.strip() == "" or prompt is None or prompt == "none":
-        workflow["135"]["inputs"]["positive_prompt"] = "Mouth moves in sync with speech. A person is sitting in a side-facing position, with their face turned toward the left side of the frame and the eyes look naturally forward in that left-facing direction without shifting. Speaking naturally, as if having a conversation. He always kept his posture and gaze straight without turning his head."    
-    else:
-        workflow["135"]["inputs"]["positive_prompt"] = prompt
+        workflow = await load_workflow(str(BASE_DIR) + "/" + WORKFLOW_INFINITETALK_PATH)
+        # ============================================================
+        # await crop_green_background(cond_image, str(cond_image.replace(".png", "_crop.png")))
+        workflow["203"]["inputs"]["image"] = cond_image
+        # =============================================================
+        workflow["125"]["inputs"]["audio"] = cond_audio_path
         
-    workflow["135"]["inputs"]["negative_prompt"] = "change perspective, bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
-    wf_h=448
-    wf_w=448
-    if resolution == "1080x1920":
-        wf_w = 1080
-        wf_h = 1920
-    elif resolution=="1920x1080":
-        wf_w = 1920
-        wf_h = 1080
-    elif resolution=="720x1280":
-        wf_w = 720
-        wf_h = 1280
-        # workflow["208"]["inputs"]["frame_window_size"] = 41
-    elif resolution=="480x854": 
-        wf_w = 480
-        wf_h = 854
-    elif resolution=="854x480": 
-        wf_w = 854
-        wf_h = 480
-    elif resolution=="1280x720":    
-        wf_w = 1280
-        wf_h = 720 
-      
-        # workflow["208"]["inputs"]["frame_window_size"] = 41
-    img = Image.open(cond_image)
-    width_real, height_real = img.size
-    workflow["211"]["inputs"]["value"] = width_real
-    workflow["212"]["inputs"]["value"] = height_real
-
-    # workflow["211"]["inputs"]["value"] = 608
-    # workflow["212"]["inputs"]["value"] = 608
-    img.close()
-
-    prefix = job_id
-    workflow["131"]["inputs"]["filename_prefix"] = prefix
-
-    print("📤 Đang gửi workflow đến ComfyUI...")
-
-    resp = await queue_prompt(workflow)
-    prompt_id = resp["prompt_id"]
-    client_id = resp["client_id"]
-    print(f"✅ Đã gửi workflow! Prompt ID: {prompt_id}")
-    
-    success = await wait_for_completion(prompt_id, client_id)
-    
-    if not success:
-        print("❌ Workflow thất bại")
-        return None
-
-    print("🔍 Đang tìm video đã tạo...")
-    video_path = await find_latest_video(prefix)
-    
-    if video_path:
-        # await delete_file_async(str(cond_image.replace(".png", "_crop.png")))  
-        await add_green_background(video_path, str(video_path.replace(".mp4", "_greenbg.mp4")), target_w=wf_w, target_h=wf_h)
-        # await delete_file_async(video_path)
-        await delete_file_async(str(video_path.replace("-audio.mp4",".mp4")))
-        await delete_file_async(str(video_path.replace("-audio.mp4",".png")))
-        video_path = str(video_path.replace(".mp4", "_greenbg.mp4"))
-        print(f"🎬 Video được tạo tại: {video_path}")
-        file_size = os.path.getsize(video_path)
-        print(f"📏 Kích thước file: {file_size / (1024*1024):.2f} MB")
+        if prompt.strip() == "" or prompt is None or prompt == "none":
+            workflow["135"]["inputs"]["positive_prompt"] = "Mouth moves in sync with speech. A person is sitting in a side-facing position, with their face turned toward the left side of the frame and the eyes look naturally forward in that left-facing direction without shifting. Speaking naturally, as if having a conversation. He always kept his posture and gaze straight without turning his head."    
+        else:
+            workflow["135"]["inputs"]["positive_prompt"] = prompt
+            
+        workflow["135"]["inputs"]["negative_prompt"] = "change perspective, bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
+        wf_h=448
+        wf_w=448
+        if resolution == "1080x1920":
+            wf_w = 1080
+            wf_h = 1920
+        elif resolution=="1920x1080":
+            wf_w = 1920
+            wf_h = 1080
+        elif resolution=="720x1280":
+            wf_w = 720
+            wf_h = 1280
+            # workflow["208"]["inputs"]["frame_window_size"] = 41
+        elif resolution=="480x854": 
+            wf_w = 480
+            wf_h = 854
+        elif resolution=="854x480": 
+            wf_w = 854
+            wf_h = 480
+        elif resolution=="1280x720":    
+            wf_w = 1280
+            wf_h = 720 
         
-        await move_file_async(str(video_path),str(output_path))
-        print("dfsdfs-----")
-        return output_path
-    else:
-        print("❌ Không tìm thấy video")
-        return None
+            # workflow["208"]["inputs"]["frame_window_size"] = 41
+        img = Image.open(cond_image)
+        width_real, height_real = img.size
+        workflow["211"]["inputs"]["value"] = width_real
+        workflow["212"]["inputs"]["value"] = height_real
+
+        # workflow["211"]["inputs"]["value"] = 608
+        # workflow["212"]["inputs"]["value"] = 608
+        img.close()
+
+        prefix = job_id
+        workflow["131"]["inputs"]["filename_prefix"] = prefix
+
+        print("📤 Đang gửi workflow đến ComfyUI...")
+
+        resp = await queue_prompt(workflow)
+        prompt_id = resp["prompt_id"]
+        client_id = resp["client_id"]
+        print(f"✅ Đã gửi workflow! Prompt ID: {prompt_id}")
+        
+        success = await wait_for_completion(prompt_id, client_id)
+        
+        if not success:
+            print("❌ Workflow thất bại")
+            return None
+
+        print("🔍 Đang tìm video đã tạo...")
+        video_path = await find_latest_video(prefix)
+        
+        if video_path:
+            # await delete_file_async(str(cond_image.replace(".png", "_crop.png")))  
+            await add_green_background(video_path, str(video_path.replace(".mp4", "_greenbg.mp4")), target_w=wf_w, target_h=wf_h)
+            await delete_file_async(video_path)
+            await delete_file_async(str(video_path.replace("-audio.mp4",".mp4")))
+            await delete_file_async(str(video_path.replace("-audio.mp4",".png")))
+            video_path = str(video_path.replace(".mp4", "_greenbg.mp4"))
+            print(f"🎬 Video được tạo tại: {video_path}")
+            file_size = os.path.getsize(video_path)
+            print(f"📏 Kích thước file: {file_size / (1024*1024):.2f} MB")
+            
+            await move_file_async(str(video_path),str(output_path))
+            print("dfsdfs-----")
+            return output_path
+        else:
+            print("❌ Không tìm thấy video")
+            return None
+    finally:
+        await stop_comfyui(comfy_process)
 
 async def move_file_async(src_path, dst_path):
     def move_file():
