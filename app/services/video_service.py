@@ -89,10 +89,12 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             if i<len(output_paths)-1:
                 list_scene.append(get_audio_duration(output_path))
             # ==============Random image for each scene=============
-            choices = [x for x in range(len(prompts)) if x != last_value] 
-            current_value = random.choice(choices)  # chọn ngẫu nhiên
-            # print(current_value)
-            last_value = current_value  # lưu 
+            if len(cond_images)>1:
+                choices = [x for x in range(len(prompts)) if x != last_value] 
+                current_value = random.choice(choices)  # chọn ngẫu nhiên
+                # print(current_value)
+                last_value = current_value  # lưu 
+            else: current_value=0
             # ===============================================================================
             print(f"Audio segment {i+1}: {output_path} (Duration: {durations[i]}s)")
             print(cond_images)
@@ -113,12 +115,20 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             print(type(audiohavesecondatstart))
             # print(clip_name)
             # print(job_id)
-            crop_green_background(cond_images[current_value], str(cond_images[current_value].replace(".png", "_crop.png")), margin=0.04)
-            resize_and_pad(str(cond_images[current_value].replace(".png", "_crop.png")), str(cond_images[current_value].replace(".png", "_pad.png")))
+            # =================================================================
+            file_path = str(cond_images[current_value])
+            file_root, file_ext = os.path.splitext(file_path)
+
+            crop_file = f"{file_root}_crop{file_ext}"
+            pad_file = f"{file_root}_pad{file_ext}"
+            crop_green_background(file_path, crop_file, margin=0.04)
+            resize_and_pad(crop_file, pad_file)
+            # crop_green_background(cond_images[current_value], str(cond_images[current_value].replace(".png", "_crop.png")), margin=0.04)
+            # resize_and_pad(str(cond_images[current_value].replace(".png", "_crop.png")), str(cond_images[current_value].replace(".png", "_pad.png")))
             
             output=await generate_video_cmd(
                 prompt=prompts[current_value],
-                cond_image=str(cond_images[current_value].replace(".png", "_pad.png")),# 
+                cond_image=str(pad_file),# 
                 cond_audio_path=audiohavesecondatstart, 
                 output_path=clip_name,
                 job_id=job_id,
@@ -128,6 +138,8 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             output_file=cut_video(clip_name, get_audio_duration(output_path)-0.5) 
             results.append(output_file)
             try:
+                os.remove(pad_file)
+                os.remove(crop_file)
                 os.remove(output_path)
                 os.remove(clip_name)
                 os.remove(audiohavesecondatstart)
@@ -154,13 +166,27 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         generate_output_filename=os.path.join(os.getcwd(), f"{job_id}_noaudio.mp4")
         if wait_for_audio_ready(audiohavesecondatstart, min_size_mb=0.02, max_wait_time=60, min_duration=2.0):
             print("Detailed check passed!")
-        crop_green_background(cond_images[0], str(cond_images[0].replace(".png", "_crop.png")), margin=0.04)
-        resize_and_pad(str(cond_images[0].replace(".png", "_crop.png")), str(cond_images[0].replace(".png", "_pad.png")))
-        print("sdf3")
-        print(str(cond_images[0].replace(".png", "_pad.png")))
+
+        # =================================================================
+        file_path = str(cond_images[0])
+        file_root, file_ext = os.path.splitext(file_path)
+
+        # Tạo file mới theo suffix mong muốn
+        crop_file = f"{file_root}_crop{file_ext}"
+        pad_file = f"{file_root}_pad{file_ext}"
+        crop_green_background(file_path, crop_file, margin=0.04)
+        resize_and_pad(crop_file, pad_file)
+        # crop_green_background(cond_images[0], str(cond_images[0].replace(".png", "_crop.png")), margin=0.04)
+        # resize_and_pad(str(cond_images[0].replace(".png", "_crop.png")), str(cond_images[0].replace(".png", "_pad.png")))
+        # ======================================================
+        # print("sdf3")
+        # print(type(cond_images[0]))
+
+        # print("============== ",str(cond_images[0].replace(".png", "_pad.png")))
+        # print("============== ",str(cond_images[0].replace(".png", "_crop.png")))
         output=await generate_video_cmd(
             prompt=prompts[0], 
-            cond_image=str(cond_images[0].replace(".png", "_pad.png")), 
+            cond_image=str(pad_file), 
             cond_audio_path=audiohavesecondatstart, 
             output_path=generate_output_filename,
             job_id=job_id,
@@ -175,6 +201,8 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         try:
             os.remove(generate_output_filename)
             os.remove(audiohavesecondatstart)
+            os.remove(str(pad_file))
+            os.remove(str(crop_file))
         except Exception as e:
             print(f"❌ Error removing temporary files: {str(e)}")
         # print("sdf5")
@@ -304,7 +332,6 @@ async def find_latest_video(prefix, output_dir=str(BASE_DIR / "ComfyUI/output"))
     # Chạy file operations trong executor để không block event loop
     def _find_files():
         patterns = [
-            f"{prefix}*.mp4",
             f"{prefix}*audio*.mp4", 
             f"{prefix}_*-audio.mp4"
         ]
@@ -405,6 +432,8 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
         # await delete_file_async(str(cond_image.replace(".png", "_crop.png")))  
         await add_green_background(video_path, str(video_path.replace(".mp4", "_greenbg.mp4")), target_w=wf_w, target_h=wf_h)
         # await delete_file_async(video_path)
+        await delete_file_async(str(video_path.replace("-audio.mp4",".mp4")))
+        await delete_file_async(str(video_path.replace("-audio.mp4",".png")))
         video_path = str(video_path.replace(".mp4", "_greenbg.mp4"))
         print(f"🎬 Video được tạo tại: {video_path}")
         file_size = os.path.getsize(video_path)

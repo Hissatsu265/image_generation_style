@@ -201,7 +201,8 @@ from PIL import Image
 import math
 
 def resize_and_pad(image_path: str, output_path: str):
-    img = Image.open(input_path)
+    print("outputpath: ", output_path)
+    img = Image.open(image_path)
     original_width, original_height = img.size
     
     print(f"Kích thước gốc: {original_width} x {original_height}")
