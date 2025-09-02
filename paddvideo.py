@@ -193,62 +193,96 @@ def crop_green_background(image_path: str, output_path: str, margin: float = 0.0
 
 
 # =======================================================================
-from PIL import Image, ImageOps
+# from PIL import Image, ImageOps
+
+# def resize_and_pad(image_path: str, output_path: str):
+
+from PIL import Image
+import math
 
 def resize_and_pad(image_path: str, output_path: str):
-    target_min, target_max = 496, 790
-    max_area = 270336
-    bg_color = (0, 177, 64)
-
-    img = Image.open(image_path).convert("RGB")
-    orig_w, orig_h = img.size
-    aspect = orig_w / orig_h
-
-    # B1: resize về khoảng [512, 790]
-    scale = 1.0
-    if orig_w < target_min or orig_h < target_min:
-        scale = max(target_min / orig_w, target_min / orig_h)
-    elif orig_w > target_max or orig_h > target_max:
-        scale = min(target_max / orig_w, target_max / orig_h)
-
-    new_w, new_h = int(orig_w * scale), int(orig_h * scale)
-    img = img.resize((new_w, new_h), Image.LANCZOS)
-
-    # B2: làm tròn 16
-    def round_to_16(x): return (x + 15) // 16 * 16
-    target_w, target_h = round_to_16(new_w), round_to_16(new_h)
-
-    # B3: giữ trong giới hạn
-    if target_w > target_max: target_w = target_max // 16 * 16
-    if target_h > target_max: target_h = target_max // 16 * 16
-
-    # B4: check diện tích
-    while target_w * target_h >= max_area:
-        if target_w >= target_h and target_w > target_min:
-            target_w -= 16
-        elif target_h > target_min:
-            target_h -= 16
-        else:
-            break
-
-    # B5: tạo nền và dán
-    bg = Image.new("RGB", (target_w, target_h), bg_color)
-
-    # Nếu cần pad ngang → căn giữa trái-phải
-    if target_w > new_w and target_h == new_h:
-        offset_x = (target_w - new_w) // 2
-        offset_y = 0  # không pad bottom
-    # Nếu cần pad dọc → pad lên trên
-    elif target_h > new_h and target_w == new_w:
-        offset_x = 0
-        offset_y = target_h - new_h  # chỉ pad phía trên
+    img = Image.open(input_path)
+    original_width, original_height = img.size
+    
+    print(f"Kích thước gốc: {original_width} x {original_height}")
+    
+    # Bước 1: Padding để các cạnh chia hết cho 16
+    # Tính kích thước mới (làm tròn lên để chia hết cho 16)
+    new_width = math.ceil(original_width / 16) * 16
+    new_height = math.ceil(original_height / 16) * 16
+    
+    # Tính padding cần thiết
+    width_padding = new_width - original_width
+    height_padding = new_height - original_height
+    
+    # Padding ngang: chia đều 2 bên
+    left_padding = width_padding // 2
+    right_padding = width_padding - left_padding
+    
+    # Padding dọc: thêm ở trên
+    top_padding = height_padding
+    bottom_padding = 0
+    
+    # Tạo ảnh mới với padding màu xanh #00B140
+    padded_img = Image.new('RGB', (new_width, new_height), '#00B140')
+    
+    # Dán ảnh gốc vào vị trí phù hợp
+    padded_img.paste(img, (left_padding, top_padding))
+    
+    print(f"Sau padding: {new_width} x {new_height}")
+    print(f"Padding: trái={left_padding}, phải={right_padding}, trên={top_padding}, dưới={bottom_padding}")
+    
+    # Bước 2: Resize để tích hai cạnh nằm trong khoảng mong muốn
+    target_min_area = 278784  # Tích tối thiểu
+    target_max_area = 409440  # Tích tối đa
+    current_area = new_width * new_height
+    
+    print(f"Diện tích hiện tại: {current_area}")
+    
+    if current_area < target_min_area:
+        # Cần phóng to
+        scale_factor = math.sqrt(target_min_area / current_area)
+        final_width = int(new_width * scale_factor)
+        final_height = int(new_height * scale_factor)
+        
+        # Đảm bảo tích không vượt quá target_max_area
+        if final_width * final_height > target_max_area:
+            scale_factor = math.sqrt(target_max_area / current_area)
+            final_width = int(new_width * scale_factor)
+            final_height = int(new_height * scale_factor)
+            
+    elif current_area > target_max_area:
+        # Cần thu nhỏ
+        scale_factor = math.sqrt(target_max_area / current_area)
+        final_width = int(new_width * scale_factor)
+        final_height = int(new_height * scale_factor)
+        
+        # Đảm bảo tích không nhỏ hơn target_min_area
+        if final_width * final_height < target_min_area:
+            scale_factor = math.sqrt(target_min_area / current_area)
+            final_width = int(new_width * scale_factor)
+            final_height = int(new_height * scale_factor)
     else:
-        offset_x = 0
-        offset_y = 0
-
-    bg.paste(img, (offset_x, offset_y))
-    bg.save(output_path)
-    print(f"✅ Saved: {output_path}, size={bg.size}, area={bg.size[0]*bg.size[1]}")
+        # Diện tích đã phù hợp, không cần resize
+        final_width = new_width
+        final_height = new_height
+    
+    # Resize ảnh
+    if final_width != new_width or final_height != new_height:
+        final_img = padded_img.resize((final_width, final_height), Image.Resampling.LANCZOS)
+        print(f"Sau resize: {final_width} x {final_height}")
+    else:
+        final_img = padded_img
+        print("Không cần resize")
+    
+    final_area = final_width * final_height
+    print(f"Diện tích cuối: {final_area}")
+    print(f"Trong khoảng mục tiêu: {target_min_area <= final_area <= target_max_area}")
+    
+    # Lưu ảnh
+    final_img.save(output_path, quality=95)
+    print(f"Đã lưu ảnh tại: {output_path}")
+    
 
 # Ví dụ chạy
 # resize_and_pad("/content/0f8d203c-dc10-4094-8b9e-45864d2cf337 sdsadasfafa.JPG", "output.jpg")
