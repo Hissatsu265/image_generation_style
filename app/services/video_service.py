@@ -27,7 +27,7 @@ from animation.zoomin import create_face_zoom_video
 from keepratio import ImagePadder
 from audio_processing_infinite import trim_video_start,add_silence_to_start
 from check_audio_safe import wait_for_audio_ready
-from paddvideo import add_green_background,replace_green_screen
+from paddvideo import add_green_background,replace_green_screen,crop_green_background
 # from app.services.create_video_infinitetalk import load_workflow,wait_for_completion,queue_prompt,find_latest_video
 import asyncio
 
@@ -329,14 +329,12 @@ async def find_latest_video(prefix, output_dir=str(BASE_DIR / "ComfyUI/output"))
 async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, job_id,resolution):
 
     print("🔄 Đang load workflow...")
-    # print("WORKFLOW_INFINITETALK_PATH: ",WORKFLOW_INFINITETALK_PATH)
-    # print(type(WORKFLOW_INFINITETALK_PATH))
-    # print(BASE_DIR)
-    # print(type(BASE_DIR))
-    # print(BASE_DIR / WORKFLOW_INFINITETALK_PATH)
+
     workflow = await load_workflow(str(BASE_DIR) + "/" + WORKFLOW_INFINITETALK_PATH)
-    
-    workflow["203"]["inputs"]["image"] = cond_image
+    # ============================================================
+    await crop_green_background(cond_image, str(cond_image.replace(".png", "_crop.png")))
+    workflow["203"]["inputs"]["image"] = str(cond_image.replace(".png", "_crop.png"))
+    # =============================================================
     workflow["125"]["inputs"]["audio"] = cond_audio_path
     
     if prompt.strip() == "" or prompt is None or prompt == "none":
@@ -350,6 +348,9 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
     if resolution == "1080x1920":
         wf_w = 1080
         wf_h = 1920
+    elif resolution=="1920x1080":
+        wf_w = 1920
+        wf_h = 1080
     elif resolution=="720x1280":
         wf_w = 720
         wf_h = 1280
@@ -362,15 +363,16 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
         wf_h = 480
     elif resolution=="1280x720":    
         wf_w = 1280
-        wf_h = 720    
+        wf_h = 720 
+      
         # workflow["208"]["inputs"]["frame_window_size"] = 41
-    img = Image.open(cond_image)
+    img = Image.open(str(cond_image.replace(".png", "_crop.png")))
     width_real, height_real = img.size
-    # workflow["211"]["inputs"]["value"] = width_real
-    # workflow["212"]["inputs"]["value"] = height_real
+    workflow["211"]["inputs"]["value"] = width_real
+    workflow["212"]["inputs"]["value"] = height_real
 
-    workflow["211"]["inputs"]["value"] = 608
-    workflow["212"]["inputs"]["value"] = 608
+    # workflow["211"]["inputs"]["value"] = 608
+    # workflow["212"]["inputs"]["value"] = 608
     img.close()
 
     prefix = job_id
@@ -393,8 +395,9 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
     video_path = await find_latest_video(prefix)
     
     if video_path:
+        # await delete_file_async(str(cond_image.replace(".png", "_crop.png")))  
         await add_green_background(video_path, str(video_path.replace(".mp4", "_greenbg.mp4")), target_w=wf_w, target_h=wf_h)
-        await delete_file_async(video_path)
+        # await delete_file_async(video_path)
         video_path = str(video_path.replace(".mp4", "_greenbg.mp4"))
         print(f"🎬 Video được tạo tại: {video_path}")
         file_size = os.path.getsize(video_path)
