@@ -27,7 +27,7 @@ from animation.zoomin import create_face_zoom_video
 from keepratio import ImagePadder
 from audio_processing_infinite import trim_video_start,add_silence_to_start
 from check_audio_safe import wait_for_audio_ready
-from paddvideo import add_green_background,replace_green_screen,crop_green_background
+from paddvideo import add_green_background,replace_green_screen,crop_green_background,resize_and_pad
 # from app.services.create_video_infinitetalk import load_workflow,wait_for_completion,queue_prompt,find_latest_video
 import asyncio
 
@@ -113,9 +113,12 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             print(type(audiohavesecondatstart))
             # print(clip_name)
             # print(job_id)
+            crop_green_background(cond_images[current_value], str(cond_images[current_value].replace(".png", "_crop.png")), margin=0.04)
+            resize_and_pad(str(cond_images[current_value].replace(".png", "_crop.png")), str(cond_images[current_value].replace(".png", "_pad.png")))
+            
             output=await generate_video_cmd(
                 prompt=prompts[current_value],
-                cond_image=cond_images[current_value],# 
+                cond_image=str(cond_images[current_value].replace(".png", "_pad.png")),# 
                 cond_audio_path=audiohavesecondatstart, 
                 output_path=clip_name,
                 job_id=job_id,
@@ -151,9 +154,13 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         generate_output_filename=os.path.join(os.getcwd(), f"{job_id}_noaudio.mp4")
         if wait_for_audio_ready(audiohavesecondatstart, min_size_mb=0.02, max_wait_time=60, min_duration=2.0):
             print("Detailed check passed!")
+        crop_green_background(cond_images[0], str(cond_images[0].replace(".png", "_crop.png")), margin=0.04)
+        resize_and_pad(str(cond_images[0].replace(".png", "_crop.png")), str(cond_images[0].replace(".png", "_pad.png")))
+        print("sdf3")
+        print(str(cond_images[0].replace(".png", "_pad.png")))
         output=await generate_video_cmd(
             prompt=prompts[0], 
-            cond_image=cond_images[0], 
+            cond_image=str(cond_images[0].replace(".png", "_pad.png")), 
             cond_audio_path=audiohavesecondatstart, 
             output_path=generate_output_filename,
             job_id=job_id,
@@ -332,8 +339,8 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
 
     workflow = await load_workflow(str(BASE_DIR) + "/" + WORKFLOW_INFINITETALK_PATH)
     # ============================================================
-    await crop_green_background(cond_image, str(cond_image.replace(".png", "_crop.png")))
-    workflow["203"]["inputs"]["image"] = str(cond_image.replace(".png", "_crop.png"))
+    # await crop_green_background(cond_image, str(cond_image.replace(".png", "_crop.png")))
+    workflow["203"]["inputs"]["image"] = cond_image
     # =============================================================
     workflow["125"]["inputs"]["audio"] = cond_audio_path
     
@@ -366,7 +373,7 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
         wf_h = 720 
       
         # workflow["208"]["inputs"]["frame_window_size"] = 41
-    img = Image.open(str(cond_image.replace(".png", "_crop.png")))
+    img = Image.open(cond_image)
     width_real, height_real = img.size
     workflow["211"]["inputs"]["value"] = width_real
     workflow["212"]["inputs"]["value"] = height_real
