@@ -10,79 +10,135 @@ from app.models.schemas import (
     VideoCreateRequest, VideoCreateResponse, JobStatusResponse, JobStatus,
     VideoEffectRequest, VideoEffectResponse, EffectJobStatusResponse
 )
+from directus.function_downloadfile import download_image, download_audio
 
 router = APIRouter(prefix="/api/v1", tags=["video"])
 
+# @router.post("/videos/create", response_model=VideoCreateResponse)
+# async def create_video(request: VideoCreateRequest):
+    
+#     if len(request.image_paths) != len(request.prompts):
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail="Number of images must match number of prompts"
+#         )
+    
+#     # Kiểm tra file tồn tại - sử dụng asyncio để không block
+#     async def check_file_exists(file_path: str, file_type: str):
+#         try:
+#             # Sử dụng thread pool để check file không block event loop
+#             loop = asyncio.get_event_loop()
+#             exists = await loop.run_in_executor(None, os.path.exists, file_path)
+#             if not exists:
+#                 raise HTTPException(
+#                     status_code=status.HTTP_400_BAD_REQUEST,
+#                     detail=f"{file_type} file not found: {file_path}"
+#                 )
+#         except HTTPException:
+#             raise
+#         except Exception as e:
+#             raise HTTPException(
+#                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#                 detail=f"Error checking {file_type} file: {str(e)}"
+#             )
+    
+#     # Check files concurrently
+#     check_tasks = []
+#     for img_path in request.image_paths:
+#         check_tasks.append(check_file_exists(img_path, "Image"))
+#     check_tasks.append(check_file_exists(request.audio_path, "Audio"))
+    
+#     try:
+#         await asyncio.gather(*check_tasks)
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Failed to validate files: {str(e)}"
+#         )
+    
+#     try:
+#         job_id = await job_service.create_job(
+#             image_paths=request.image_paths,
+#             prompts=request.prompts,
+#             audio_path=request.audio_path,
+#             resolution=request.resolution,
+#             background=request.background  
+#         )
+        
+#         # Lấy thông tin queue để trả về cho user
+#         queue_info = await job_service.get_queue_info()
+        
+#         return VideoCreateResponse(
+#             job_id=job_id,
+#             status=JobStatus.PENDING,
+#             message=f"Job created successfully. Position in queue: {queue_info['pending_jobs']}",
+#             queue_position=queue_info['pending_jobs'],
+#             estimated_wait_time=queue_info['pending_jobs'] * 5  
+#         )
+        
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Failed to create job: {str(e)}"
+#         )
+# ===============================================================
 @router.post("/videos/create", response_model=VideoCreateResponse)
 async def create_video(request: VideoCreateRequest):
-    
     if len(request.image_paths) != len(request.prompts):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Number of images must match number of prompts"
         )
-    
-    # Kiểm tra file tồn tại - sử dụng asyncio để không block
-    async def check_file_exists(file_path: str, file_type: str):
-        try:
-            # Sử dụng thread pool để check file không block event loop
-            loop = asyncio.get_event_loop()
-            exists = await loop.run_in_executor(None, os.path.exists, file_path)
-            if not exists:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"{file_type} file not found: {file_path}"
-                )
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error checking {file_type} file: {str(e)}"
-            )
-    
-    # Check files concurrently
-    check_tasks = []
-    for img_path in request.image_paths:
-        check_tasks.append(check_file_exists(img_path, "Image"))
-    check_tasks.append(check_file_exists(request.audio_path, "Audio"))
-    
+
     try:
-        await asyncio.gather(*check_tasks)
-    except HTTPException:
-        raise
+        # Tải ảnh và audio từ URL về local tạm
+        # local_images = []
+        # for img_url in request.image_paths:
+        #     local_images.append(download_image(img_url))
+
+        # local_audio = download_audio(request.audio_path)
+        # Tải ảnh và thay thế trực tiếp vào request.image_paths
+        request.image_paths = [
+            download_image(img_url) for img_url in request.image_paths
+        ]
+        request.audio_path = download_audio(request.audio_path)
+        # print("Downloaded images:", request.image_paths)
+        # print("s====================s")
+        # print("Downloaded audio:", request.audio_path)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to validate files: {str(e)}"
+            detail=f"Failed to download files: {str(e)}"
         )
-    
+
     try:
+        # Tạo job với path local đã tải
         job_id = await job_service.create_job(
             image_paths=request.image_paths,
             prompts=request.prompts,
             audio_path=request.audio_path,
             resolution=request.resolution,
-            background=request.background  
+            background=request.background
         )
-        
-        # Lấy thông tin queue để trả về cho user
+
         queue_info = await job_service.get_queue_info()
-        
+
         return VideoCreateResponse(
             job_id=job_id,
             status=JobStatus.PENDING,
             message=f"Job created successfully. Position in queue: {queue_info['pending_jobs']}",
             queue_position=queue_info['pending_jobs'],
-            estimated_wait_time=queue_info['pending_jobs'] * 5  
+            estimated_wait_time=queue_info['pending_jobs'] * 5
         )
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create job: {str(e)}"
         )
-
+# =============================================================================
 @router.get("/jobs/{job_id}/status", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
     

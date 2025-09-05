@@ -141,8 +141,8 @@ def split_audio_file(input_path, output_dir="output", max_duration=7):
 
 
 def find_optimal_cut_point(audio, max_duration_ms):
-    start_check = 4 * 1000  
-    end_check = 12 * 1000  
+    start_check = 10 * 1000  
+    end_check = 15 * 1000  
 
     end_check = min(end_check, len(audio))
     check_segment = audio[start_check:end_check]
@@ -163,6 +163,6 @@ def find_optimal_cut_point(audio, max_duration_ms):
 
 
 def process_audio_file(input_path, output_dir="output"):
-    return split_audio_file(input_path, output_dir, max_duration=15)
+    return split_audio_file(input_path, output_dir, max_duration=18)
 
 # t,s,y=process_audio_file("/workspace/multitalk_verquant/audio/german41s_add1s.wav", "output_segments")

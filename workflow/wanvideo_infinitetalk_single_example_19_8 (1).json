@@ -103,7 +103,7 @@
   },
   "134": {
     "inputs": {
-      "blocks_to_swap": 15,
+      "blocks_to_swap": 10,
       "offload_img_emb": false,
       "offload_txt_emb": false,
       "use_non_blocking": true,
@@ -273,7 +273,7 @@
   "194": {
     "inputs": {
       "normalize_loudness": true,
-      "num_frames": 1000,
+      "num_frames": 1600,
       "fps": 25,
       "audio_scale": 1,
       "audio_cfg_scale": 1,

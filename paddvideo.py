@@ -54,7 +54,8 @@ async def add_green_background(input_video: str, output_video: str, target_w: in
     # print(new_w)
     resized_clip = clip.resize((new_w, new_h))
 
-    green_bg = ColorClip(size=(target_w, target_h), color=(0, 255, 0), duration=clip.duration)
+    green_bg = ColorClip(size=(target_w, target_h), color=(0, 177, 64), duration=clip.duration)
+
 
     # Vị trí căn giữa (nếu có face thì có thể tinh chỉnh sau)
     # face_info = detect_face_center(input_video)
@@ -200,89 +201,69 @@ def crop_green_background(image_path: str, output_path: str, margin: float = 0.0
 from PIL import Image
 import math
 
+
+from PIL import Image
+import math
+
 def resize_and_pad(image_path: str, output_path: str):
     print("outputpath: ", output_path)
     img = Image.open(image_path)
     original_width, original_height = img.size
     
     print(f"Kích thước gốc: {original_width} x {original_height}")
-    
-    # Bước 1: Padding để các cạnh chia hết cho 16
-    # Tính kích thước mới (làm tròn lên để chia hết cho 16)
-    new_width = math.ceil(original_width / 16) * 16
-    new_height = math.ceil(original_height / 16) * 16
-    
-    # Tính padding cần thiết
-    width_padding = new_width - original_width
-    height_padding = new_height - original_height
-    
-    # Padding ngang: chia đều 2 bên
-    left_padding = width_padding // 2
-    right_padding = width_padding - left_padding
-    
-    # Padding dọc: thêm ở trên
-    top_padding = height_padding
-    bottom_padding = 0
-    
-    # Tạo ảnh mới với padding màu xanh #00B140
-    padded_img = Image.new('RGB', (new_width, new_height), '#00B140')
-    
-    # Dán ảnh gốc vào vị trí phù hợp
-    padded_img.paste(img, (left_padding, top_padding))
-    
-    print(f"Sau padding: {new_width} x {new_height}")
-    print(f"Padding: trái={left_padding}, phải={right_padding}, trên={top_padding}, dưới={bottom_padding}")
-    
-    # Bước 2: Resize để tích hai cạnh nằm trong khoảng mong muốn
-    target_min_area = 278784  # Tích tối thiểu
-    target_max_area = 409440  # Tích tối đa
-    current_area = new_width * new_height
+
+    # --- Bước 1: Resize để diện tích nằm trong khoảng ---
+    target_min_area = 262144   # 512 x 512
+    target_max_area = 390625   # ví dụ ~ 631 x 632
+    current_area = original_width * original_height
     
     print(f"Diện tích hiện tại: {current_area}")
-    
+
     if current_area < target_min_area:
         # Cần phóng to
         scale_factor = math.sqrt(target_min_area / current_area)
-        final_width = int(new_width * scale_factor)
-        final_height = int(new_height * scale_factor)
-        
-        # Đảm bảo tích không vượt quá target_max_area
-        if final_width * final_height > target_max_area:
-            scale_factor = math.sqrt(target_max_area / current_area)
-            final_width = int(new_width * scale_factor)
-            final_height = int(new_height * scale_factor)
-            
     elif current_area > target_max_area:
         # Cần thu nhỏ
         scale_factor = math.sqrt(target_max_area / current_area)
-        final_width = int(new_width * scale_factor)
-        final_height = int(new_height * scale_factor)
-        
-        # Đảm bảo tích không nhỏ hơn target_min_area
-        if final_width * final_height < target_min_area:
-            scale_factor = math.sqrt(target_min_area / current_area)
-            final_width = int(new_width * scale_factor)
-            final_height = int(new_height * scale_factor)
     else:
-        # Diện tích đã phù hợp, không cần resize
-        final_width = new_width
-        final_height = new_height
-    
-    # Resize ảnh
-    if final_width != new_width or final_height != new_height:
-        final_img = padded_img.resize((final_width, final_height), Image.Resampling.LANCZOS)
-        print(f"Sau resize: {final_width} x {final_height}")
-    else:
-        final_img = padded_img
-        print("Không cần resize")
-    
-    final_area = final_width * final_height
-    print(f"Diện tích cuối: {final_area}")
-    print(f"Trong khoảng mục tiêu: {target_min_area <= final_area <= target_max_area}")
-    
+        scale_factor = 1.0  # Không cần thay đổi
+
+    new_width = int(original_width * scale_factor)
+    new_height = int(original_height * scale_factor)
+    resized_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    resized_area = new_width * new_height
+
+    print(f"Sau resize: {new_width} x {new_height}, diện tích = {resized_area}")
+
+    # --- Bước 2: Padding để các cạnh chia hết cho 16 ---
+    padded_width = math.ceil(new_width / 16) * 16
+    padded_height = math.ceil(new_height / 16) * 16
+
+    # Padding ngang (chia đều hai bên)
+    width_padding = padded_width - new_width
+    left_padding = width_padding // 2
+    right_padding = width_padding - left_padding
+
+    # Padding dọc (thêm ở trên, không thêm dưới)
+    height_padding = padded_height - new_height
+    top_padding = height_padding
+    bottom_padding = 0
+
+    # Tạo ảnh mới với nền xanh
+    final_img = Image.new('RGB', (padded_width, padded_height), '#00B140')
+
+    # Paste ảnh đã resize vào
+    final_img.paste(resized_img, (left_padding, top_padding))
+
+    print(f"Sau padding: {padded_width} x {padded_height}")
+    print(f"Padding: trái={left_padding}, phải={right_padding}, trên={top_padding}, dưới={bottom_padding}")
+    print(f"Cuối cùng: diện tích {padded_width * padded_height}")
+
     # Lưu ảnh
     final_img.save(output_path, quality=95)
     print(f"Đã lưu ảnh tại: {output_path}")
+
+# crop_green_background("/content/ComfyUI_temp_pnany_00003_.png", "cropped.jpg", margin=0.05)
     
 
 # Ví dụ chạy

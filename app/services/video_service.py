@@ -30,7 +30,7 @@ from check_audio_safe import wait_for_audio_ready
 from paddvideo import add_green_background,replace_green_screen,crop_green_background,resize_and_pad
 # from app.services.create_video_infinitetalk import load_workflow,wait_for_completion,queue_prompt,find_latest_video
 import asyncio
-
+from directus.file_upload import Uploadfile_directus
 padder = ImagePadder()
 class VideoService:
     def __init__(self):
@@ -49,13 +49,19 @@ class VideoService:
         try:
             
             from app.services.job_service import job_service
-            await job_service.update_job_status(job_id, "processing", progress=30)
+            await job_service.update_job_status(job_id, "processing", progress=99)
             # print("dfsdf")
 
             list_scene = await run_job(jobid, prompts, image_paths, audio_path, output_path,resolution,background)   
-
-            print(f"Video created successfully: {output_path}")
-            print(f"Job ID: {job_id}, Output Path: {output_path}")
+            path_directus= Uploadfile_directus(str(output_path))
+            if path_directus is not None and output_path.exists() :
+                print(f"Video upload successfully: {path_directus}")
+                print(f"Job ID: {job_id}, Output Path: {path_directus}")
+                os.remove(str(output_path))
+                return str(path_directus),list_scene
+            else:
+                raise Exception("Cannot upload video to Directus or Video creation failed - output file not found")
+            # return str(output_path),list_scene
             # =====================Test=================================
             # await asyncio.sleep(2)  
             # await job_service.update_job_status(job_id, "processing", progress=60)
@@ -64,10 +70,10 @@ class VideoService:
             # await job_service.update_job_status(job_id, "processing", progress=90)
             
             # ==== END CODE ====
-            if output_path.exists():
-                return str(output_path),list_scene
-            else:
-                raise Exception("Video creation failed - output file not found")
+            # if output_path.exists():
+            #     return str(path_directus),list_scene
+            # else:
+            #     raise Exception("Video creation failed - output file not found")
                 
         except Exception as e:
             if output_path.exists():
@@ -78,8 +84,8 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
     generate_output_filename = output_path_video
     # print("sdf2")
     list_scene=[]
-    # if get_audio_duration(cond_audio_path) > 15 :
-    if False:
+    if get_audio_duration(cond_audio_path) > 20:
+    # if False:
         output_directory = "output_segments"
         os.makedirs(output_directory, exist_ok=True)
         output_paths,durations, result = process_audio_file(cond_audio_path, output_directory)
