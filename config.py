@@ -46,7 +46,11 @@ from datetime import datetime
 from pymongo import MongoClient
 
 # MongoDB Configuration
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://admin:PryeLNdR49XWYQ9@87.106.214.210:27017")
+pass_db=os.getenv("MONGODB_PASSWORD","MONGODB_Pass")
+MONGODB_URI = os.getenv(
+    "MONGODB_URI",
+    f"mongodb://admin:{pass_db}@87.106.214.210:27017"
+)
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "anymateme_eduhub_prod")
 MONGODB_JOBS_COLLECTION = os.getenv("MONGODB_JOBS_COLLECTION", "video_jobs")
 MONGODB_EFFECT_JOBS_COLLECTION = os.getenv("MONGODB_EFFECT_JOBS_COLLECTION", "effect_jobs")
