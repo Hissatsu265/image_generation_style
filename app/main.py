@@ -6,6 +6,8 @@ from app.services.job_service import job_service
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    await job_service.init_mongodb()
+
     await job_service.init_redis()
     yield
     # Shutdown

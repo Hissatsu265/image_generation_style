@@ -37,5 +37,17 @@ load_dotenv()
 
 class DirectusConfig:
     DIRECTUS_URL = os.getenv("DIRECTUS_URL")
-    ACCESS_TOKEN = os.getenv("DIRECTUS_ACCESS_TOKEN")  # Replace in production
+    ACCESS_TOKEN = os.getenv("DIRECTUS_ACCESS_TOKEN")
     FOLDER_ID = os.getenv("DIRECTUS_FOLDER_ID")
+
+
+# =====================================================
+from datetime import datetime
+from pymongo import MongoClient
+
+# MongoDB Configuration
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://admin:PryeLNdR49XWYQ9@87.106.214.210:27017")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "anymateme_eduhub_prod")
+MONGODB_JOBS_COLLECTION = os.getenv("MONGODB_JOBS_COLLECTION", "video_jobs")
+MONGODB_EFFECT_JOBS_COLLECTION = os.getenv("MONGODB_EFFECT_JOBS_COLLECTION", "effect_jobs")
+MONGODB_DATABASE = "anymateme_eduhub_prod"

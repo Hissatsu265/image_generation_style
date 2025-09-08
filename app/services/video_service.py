@@ -162,6 +162,9 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
         )
         try:
             os.remove(output_file1)
+            for path in cond_images:
+                os.remove(str(path))
+            os.remove(cond_audio_path)
             for file in results:
                 os.remove(file)
         except Exception as e:
@@ -209,6 +212,9 @@ async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_vide
             os.remove(str(audiohavesecondatstart))
             os.remove(str(pad_file))
             os.remove(str(crop_file))
+            for path in cond_images:
+                os.remove(str(path))
+            os.remove(cond_audio_path)
         except Exception as e:
             print(f"❌ Error removing temporary files: {str(e)}")
         # print("sdf5")
