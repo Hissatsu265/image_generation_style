@@ -14,24 +14,10 @@ import time
 from config import SERVER_COMFYUI,WORKFLOW_INFINITETALK_PATH,BASE_DIR
 from PIL import Image
 server_address = SERVER_COMFYUI
+import shutil
 
-from divide_audio import process_audio_file
-from multiperson_imageedit import crop_with_ratio_expansion
-from merge_video import concat_videos
-from take_lastframe import save_last_frame
-from cut_video import cut_video,cut_audio,cut_audio_from_time
-from audio_duration import get_audio_duration
-from add03seconds import add_silence_to_audio
-from animation.animation_decision import select_peak_segment
-from animation.zoomin import create_face_zoom_video
-from keepratio import ImagePadder
-from audio_processing_infinite import trim_video_start,add_silence_to_start
-from check_audio_safe import wait_for_audio_ready
-from paddvideo import add_green_background,replace_green_screen,crop_green_background,resize_and_pad
-# from app.services.create_video_infinitetalk import load_workflow,wait_for_completion,queue_prompt,find_latest_video
 import asyncio
 from directus.file_upload import Uploadfile_directus
-padder = ImagePadder()
 class VideoService:
     def __init__(self):
         from config import OUTPUT_DIR
@@ -40,191 +26,70 @@ class VideoService:
     def generate_output_filename(self) -> str:
         unique_id = str(uuid.uuid4())[:8]
         timestamp = int(asyncio.get_event_loop().time())
-        return unique_id, f"video_{timestamp}_{unique_id}.mp4"
+        return unique_id, f"video_{timestamp}_{unique_id}_1.png",f"video_{timestamp}_{unique_id}_2.png"
 
-    async def create_video(self, image_paths: List[str], prompts: List[str], audio_path: str, resolution: str, job_id: str,background:None) -> str:
-        jobid, output_filename = self.generate_output_filename()
-        output_path = self.output_dir / output_filename
-        # print("fdfsdfsdf")
+    async def create_video(self, image_paths: List[str], prompts: List[str], model: str, resolution: str, job_id: str) -> str:
+        jobid, output_filename1,output_filename2 = self.generate_output_filename()
+        # output_path1 = self.output_dir / output_filename1
+        # output_path2 = self.output_dir / output_filename2
+        # print("===============================")
+        # print("hi: ",output_path1)
+        # print("hi: ",output_path2)
+        # print("promtp",prompts)
+        # print("image_paths",image_paths)
+        # print("model",model)
+        # print("===============================")
+
         try:
-            
             from app.services.job_service import job_service
             await job_service.update_job_status(job_id, "processing", progress=99)
-            # print("dfsdf")
+            print("60")
+            img = await run_job(jobid, prompts, image_paths, resolution,model)   
+            # for path in img:
+            #     print(path,"=====heh")
+            # print("61")
+            list_img=[]
+            for path in img:
+                print(path,"=====heh")
+                path_directus= Uploadfile_directus(str(path))
+                list_img.append(path_directus)
 
-            list_scene = await run_job(jobid, prompts, image_paths, audio_path, output_path,resolution,background)   
-            path_directus= Uploadfile_directus(str(output_path))
-            if path_directus is not None and output_path.exists() :
-                print(f"Video upload successfully: {path_directus}")
-                print(f"Job ID: {job_id}, Output Path: {path_directus}")
-                os.remove(str(output_path))
-                return str(path_directus),list_scene
+            folder = os.path.dirname(img[0])
+            if os.path.exists(folder):
+                shutil.rmtree(folder)
+                print(f"Đã xóa thư mục: {folder}")
             else:
-                raise Exception("Cannot upload video to Directus or Video creation failed - output file not found")
-            # return str(output_path),list_scene
-            # =====================Test=================================
-            # await asyncio.sleep(2)  
-            # await job_service.update_job_status(job_id, "processing", progress=60)
-            
-            # await asyncio.sleep(2)  
-            # await job_service.update_job_status(job_id, "processing", progress=90)
-            
-            # ==== END CODE ====
-            # if output_path.exists():
-            #     return str(path_directus),list_scene
-            # else:
-            #     raise Exception("Video creation failed - output file not found")
-                
-        except Exception as e:
-            if output_path.exists():
-                output_path.unlink()
-            raise e
-async def run_job(job_id, prompts, cond_images, cond_audio_path,output_path_video,resolution,background):
-    print("resolution: ",resolution)
-    generate_output_filename = output_path_video
-    # print("sdf2")
-    list_scene=[]
-    if get_audio_duration(cond_audio_path) > 20:
-    # if False:
-        output_directory = "output_segments"
-        os.makedirs(output_directory, exist_ok=True)
-        output_paths,durations, result = process_audio_file(cond_audio_path, output_directory)
-        results=[]
-        last_value=None
-        for i, output_path in enumerate(output_paths):
-            if i<len(output_paths)-1:
-                list_scene.append(get_audio_duration(output_path))
-            # ==============Random image for each scene=============
-            if len(cond_images)>1:
-                choices = [x for x in range(len(prompts)) if x != last_value] 
-                current_value = random.choice(choices)  # chọn ngẫu nhiên
-                # print(current_value)
-                last_value = current_value  # lưu 
-            else: current_value=0
-            # ===============================================================================
-            print(f"Audio segment {i+1}: {output_path} (Duration: {durations[i]}s)")
-            print(cond_images)
-            print(f"Image: {cond_images[current_value]}")
-            print(f"Prompt: {prompts[current_value]}")
-            # clip_name03second=os.path.join(os.getcwd(), f"{job_id}_clip03second_{i}.mp4")
-            clip_name=os.path.join(os.getcwd(), f"{job_id}_clip_{i}.mp4")
-            # print(i)
-            # print(type(current_value))
-            audiohavesecondatstart = add_silence_to_start(output_path, job_id, duration_ms=0)
-            # if wait_for_audio_ready(audiohavesecondatstart, min_size_mb=0.02, max_wait_time=60, min_duration=2.0):
-            #     print("Detailed check passed!")
-            # print(prompts[current_value])
-            # print(cond_images[current_value])
-            # print("dfsdfsdfsd:   ", audiohavesecondatstart)
-            audiohavesecondatstart=str(BASE_DIR / audiohavesecondatstart)
-            print("dfsdfsdfsd:   ", audiohavesecondatstart)
-            print(type(audiohavesecondatstart))
-            # print(clip_name)
-            # print(job_id)
-            # =================================================================
-            file_path = str(cond_images[current_value])
-            file_root, file_ext = os.path.splitext(file_path)
+                print(f"Thư mục không tồn tại: {folder}")
 
-            crop_file = f"{file_root}_crop{file_ext}"
-            pad_file = f"{file_root}_pad{file_ext}"
-            crop_green_background(file_path, crop_file, margin=0.04)
-            resize_and_pad(crop_file, pad_file)
-            # crop_green_background(cond_images[current_value], str(cond_images[current_value].replace(".png", "_crop.png")), margin=0.04)
-            # resize_and_pad(str(cond_images[current_value].replace(".png", "_crop.png")), str(cond_images[current_value].replace(".png", "_pad.png")))
-            
-            output=await generate_video_cmd(
+            return list_img
+            # if path_directus is not None and output_path.exists() :
+            #     print(f"Video upload successfully: {path_directus}")
+            #     print(f"Job ID: {job_id}, Output Path: {path_directus}")
+            #     os.remove(str(output_path))
+            #     return str(path_directus)
+            # else:
+            #     raise Exception("Cannot upload video to Directus or Video creation failed - output file not found")
+           
+        except Exception as e:
+            # if output_path1.exists():
+            #     output_path1.unlink()
+            raise e
+async def run_job(job_id, prompts, cond_images,resolution,model):
+    current_value=0
+    img=await generate_video_cmd(
                 prompt=prompts[current_value],
-                cond_image=str(pad_file),# 
-                cond_audio_path=audiohavesecondatstart, 
-                output_path=clip_name,
+                cond_image=cond_images[current_value], 
+                model=model, 
                 job_id=job_id,
                 resolution=resolution
             )
-            trim_video_start(clip_name, duration=0.5)
-            output_file=cut_video(clip_name, get_audio_duration(output_path)-0.5) 
-            results.append(output_file)
-            try:
-                os.remove(pad_file)
-                os.remove(crop_file)
-                os.remove(output_path)
-                os.remove(clip_name)
-                os.remove(audiohavesecondatstart)
-            except Exception as e:
-                print(f"❌ Error removing temporary file {output_path}: {str(e)}")
+    try:
+        os.remove(cond_images[current_value])
+    except Exception as e:
+        print(f"❌ Error removing temporary files: {str(e)}")
+    return  img
 
-        concat_name=os.path.join(os.getcwd(), f"{job_id}_concat_{i}.mp4")
-        output_file1 = concat_videos(results, concat_name)
-        from merge_video_audio import replace_audio_trimmed
-        output_file = replace_audio_trimmed(output_file1,cond_audio_path,output_path_video)
-        replace_green_screen(
-            video_path=str(output_path_video),
-            background_path=background,  
-        )
-        try:
-            os.remove(output_file1)
-            for path in cond_images:
-                os.remove(str(path))
-            os.remove(cond_audio_path)
-            for file in results:
-                os.remove(file)
-        except Exception as e:
-            print(f"❌ Error removing temporary files: {str(e)}")
-        return list_scene
-    else:
-        audiohavesecondatstart = add_silence_to_start(cond_audio_path, job_id, duration_ms=500)
-        generate_output_filename=os.path.join(os.getcwd(), f"{job_id}_noaudio.mp4")
-        if wait_for_audio_ready(audiohavesecondatstart, min_size_mb=0.02, max_wait_time=60, min_duration=2.0):
-            print("Detailed check passed!")
 
-        # =================================================================
-        file_path = str(cond_images[0])
-        file_root, file_ext = os.path.splitext(file_path)
-
-        # Tạo file mới theo suffix mong muốn
-        crop_file = f"{file_root}_crop{file_ext}"
-        pad_file = f"{file_root}_pad{file_ext}"
-        crop_green_background(file_path, crop_file, margin=0.04)
-        resize_and_pad(crop_file, pad_file)
-        # crop_green_background(cond_images[0], str(cond_images[0].replace(".png", "_crop.png")), margin=0.04)
-        # resize_and_pad(str(cond_images[0].replace(".png", "_crop.png")), str(cond_images[0].replace(".png", "_pad.png")))
-        # ======================================================
-        # print("sdf3")
-        # print(type(cond_images[0]))
-
-        # print("============== ",str(cond_images[0].replace(".png", "_pad.png")))
-        # print("============== ",str(cond_images[0].replace(".png", "_crop.png")))
-        output=await generate_video_cmd(
-            prompt=prompts[0], 
-            cond_image=str(pad_file), 
-            cond_audio_path=audiohavesecondatstart, 
-            output_path=generate_output_filename,
-            job_id=job_id,
-            resolution=resolution
-        )  
-        # print("sdf4")
-        from merge_video_audio import replace_audio_trimmed
-        # print("dfdsf")
-        # print(generate_output_filename)
-        tempt=trim_video_start(generate_output_filename, duration=0.5)
-        output_file = replace_audio_trimmed(generate_output_filename,cond_audio_path,output_path_video)
-        try:
-            os.remove(str(generate_output_filename))
-            os.remove(str(audiohavesecondatstart))
-            os.remove(str(pad_file))
-            os.remove(str(crop_file))
-            for path in cond_images:
-                os.remove(str(path))
-            os.remove(cond_audio_path)
-        except Exception as e:
-            print(f"❌ Error removing temporary files: {str(e)}")
-        # print("sdf5")
-        replace_green_screen(
-            video_path=str(output_path_video),
-            background_path=background,  
-        )
-        # print("sdf6")
-
-        return list_scene
 # ============================================================================================
 
 import asyncio
@@ -349,7 +214,7 @@ async def wait_for_completion_fallback(prompt_id):
     while True:
         await asyncio.sleep(2)  # Chờ bất đồng bộ
         
-        video_path = await find_latest_video("my_custom_video")
+        video_path = await find_images_by_id("my_custom_video")
         if video_path and os.path.exists(video_path):
             file_time = os.path.getmtime(video_path)
             if file_time > start_time:
@@ -361,60 +226,74 @@ async def wait_for_completion_fallback(prompt_id):
             return False
 
 # ========== Hàm tìm video mới nhất bất đồng bộ ==========
-async def find_latest_video(prefix, output_dir=str(BASE_DIR / "ComfyUI/output")):    
-    # Chạy file operations trong executor để không block event loop
-    def _find_files():
-        patterns = [
-            f"{prefix}*audio*.mp4", 
-            f"{prefix}_*-audio.mp4"
-        ]
+# async def find_latest_video(prefix, output_dir=str(BASE_DIR / "ComfyUI/output")):    
+#     # Chạy file operations trong executor để không block event loop
+#     def _find_files():
+#         patterns = [
+#             f"{prefix}*audio*.mp4", 
+#             f"{prefix}_*-audio.mp4"
+#         ]
         
-        all_files = []
-        for pattern in patterns:
-            files = glob.glob(os.path.join(output_dir, pattern))
-            all_files.extend(files)
+#         all_files = []
+#         for pattern in patterns:
+#             files = glob.glob(os.path.join(output_dir, pattern))
+#             all_files.extend(files)
         
-        if not all_files:
-            print(f"🔍 Không tìm thấy file nào với prefix '{prefix}' trong {output_dir}")
-            # List tất cả file .mp4 để debug
-            all_mp4 = glob.glob(os.path.join(output_dir, "*.mp4"))
-            if all_mp4:
-                print(f"📁 Các file .mp4 hiện có:")
-                for f in sorted(all_mp4, key=os.path.getmtime, reverse=True)[:5]:
-                    print(f"   {f} (modified: {time.ctime(os.path.getmtime(f))})")
-            return None
+#         if not all_files:
+#             print(f"🔍 Không tìm thấy file nào với prefix '{prefix}' trong {output_dir}")
+#             # List tất cả file .mp4 để debug
+#             all_mp4 = glob.glob(os.path.join(output_dir, "*.mp4"))
+#             if all_mp4:
+#                 print(f"📁 Các file .mp4 hiện có:")
+#                 for f in sorted(all_mp4, key=os.path.getmtime, reverse=True)[:5]:
+#                     print(f"   {f} (modified: {time.ctime(os.path.getmtime(f))})")
+#             return None
         
-        latest_file = max(all_files, key=os.path.getmtime)
-        print(f"📁 Tìm thấy file mới nhất: {latest_file}")
-        return latest_file
+#         latest_file = max(all_files, key=os.path.getmtime)
+#         print(f"📁 Tìm thấy file mới nhất: {latest_file}")
+#         return latest_file
     
-    # Chạy trong executor
+#     # Chạy trong executor
+#     loop = asyncio.get_event_loop()
+#     return await loop.run_in_executor(None, _find_files)
+async def find_images_by_id(image_id, output_dir=str(BASE_DIR / "ComfyUI/output")):
+    def _find_files():
+        target_dir = os.path.join(output_dir, str(image_id))
+        if not os.path.exists(target_dir):
+            print(f"❌ Không tìm thấy thư mục: {target_dir}")
+            return []
+        print("===============")
+        pattern = os.path.join(target_dir, f"{image_id}*.png")
+        files = glob.glob(pattern)
+        print(pattern)
+        if not files:
+            print(f"🔍 Không tìm thấy file nào với id '{image_id}' trong {target_dir}")
+            return []
+        files_sorted = sorted(files, key=os.path.getmtime, reverse=True)
+        return files_sorted[:2]
+
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _find_files)
 
 # ========== Hàm chính được cập nhật ==========
-async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, job_id,resolution):
+async def generate_video_cmd(prompt, cond_image, model, job_id,resolution):
     comfy_process = await start_comfyui()
-    await asyncio.sleep(15)  # đợi server ComfyUI khởi động (có thể tăng nếu load model chậm)
-
+    await asyncio.sleep(10)  
     try:
         print("🔄 Đang load workflow...")
-
         workflow = await load_workflow(str(BASE_DIR) + "/" + WORKFLOW_INFINITETALK_PATH)
         # ============================================================
         # await crop_green_background(cond_image, str(cond_image.replace(".png", "_crop.png")))
-        workflow["203"]["inputs"]["image"] = cond_image
+        workflow["41"]["inputs"]["image"] = cond_image
         # =============================================================
-        workflow["125"]["inputs"]["audio"] = cond_audio_path
-        
+        print("289")
         if prompt.strip() == "" or prompt is None or prompt == "none":
-            workflow["135"]["inputs"]["positive_prompt"] = "Mouth moves in sync with speech. A person is sitting in a side-facing position, with their face turned toward the left side of the frame and the eyes look naturally forward in that left-facing direction without shifting. Speaking naturally, as if having a conversation. He always kept his posture and gaze straight without turning his head."    
+            workflow["6"]["inputs"]["text"] = "A hyper-realistic high-quality photo where the person in the original image is naturally interacting with the product placed in the scene. The person is realistically holding, touching, or standing next to the object with a natural posture and hand placement. The product looks proportional, seamlessly integrated into the scene, with correct perspective, lighting, reflections, and shadows matching the environment. The person’s appearance, expression, clothing, and background remain unchanged. The overall photo looks natural, authentic, and photorealistic, suitable for professional commercial advertising."    
         else:
-            workflow["135"]["inputs"]["positive_prompt"] = prompt
-            
-        workflow["135"]["inputs"]["negative_prompt"] = "change perspective, bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
+            workflow["6"]["inputs"]["text"] = prompt            
         wf_h=448
         wf_w=448
+        print(resolution,"=====================")
         if resolution == "1080x1920":
             wf_w = 1080
             wf_h = 1920
@@ -424,7 +303,6 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
         elif resolution=="720x1280":
             wf_w = 720
             wf_h = 1280
-            # workflow["208"]["inputs"]["frame_window_size"] = 41
         elif resolution=="480x854": 
             wf_w = 480
             wf_h = 854
@@ -435,52 +313,32 @@ async def generate_video_cmd(prompt, cond_image, cond_audio_path, output_path, j
             wf_w = 1280
             wf_h = 720 
         
-            # workflow["208"]["inputs"]["frame_window_size"] = 41
-        img = Image.open(cond_image)
-        width_real, height_real = img.size
-        workflow["211"]["inputs"]["value"] = width_real
-        workflow["212"]["inputs"]["value"] = height_real
+        workflow["79"]["inputs"]["value"] = wf_w
+        workflow["83"]["inputs"]["value"] = wf_h
+        modelfp8 = "flux1-kontext-dev-fp8.safetensors"
+        if model=="fp8":
+            workflow["12"]["inputs"]["unet_name"] = modelfp8
 
-        # workflow["211"]["inputs"]["value"] = 608
-        # workflow["212"]["inputs"]["value"] = 608
-        img.close()
-
-        prefix = job_id
-        workflow["131"]["inputs"]["filename_prefix"] = prefix
-
+# ===========================================================
+        prefix = job_id+"/"+job_id
+        workflow["9"]["inputs"]["filename_prefix"] = prefix
         print("📤 Đang gửi workflow đến ComfyUI...")
-
         resp = await queue_prompt(workflow)
+
+        print("resp",resp)
         prompt_id = resp["prompt_id"]
         client_id = resp["client_id"]
         print(f"✅ Đã gửi workflow! Prompt ID: {prompt_id}")
-        
         success = await wait_for_completion(prompt_id, client_id)
         
         if not success:
             print("❌ Workflow thất bại")
             return None
 
-        print("🔍 Đang tìm video đã tạo...")
-        video_path = await find_latest_video(prefix)
-        
-        if video_path:
-            # await delete_file_async(str(cond_image.replace(".png", "_crop.png")))  
-            await add_green_background(video_path, str(video_path.replace(".mp4", "_greenbg.mp4")), target_w=wf_w, target_h=wf_h)
-            await delete_file_async(video_path)
-            await delete_file_async(str(video_path.replace("-audio.mp4",".mp4")))
-            await delete_file_async(str(video_path.replace("-audio.mp4",".png")))
-            video_path = str(video_path.replace(".mp4", "_greenbg.mp4"))
-            print(f"🎬 Video được tạo tại: {video_path}")
-            file_size = os.path.getsize(video_path)
-            print(f"📏 Kích thước file: {file_size / (1024*1024):.2f} MB")
-            
-            await move_file_async(str(video_path),str(output_path))
-            print("dfsdfs-----")
-            return output_path
-        else:
-            print("❌ Không tìm thấy video")
-            return None
+        print("🔍 Đang tìm image đã tạo...")
+        img = await find_images_by_id(job_id)
+        # print("Succes",img)
+        return img
     finally:
         await stop_comfyui(comfy_process)
 

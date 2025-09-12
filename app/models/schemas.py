@@ -23,9 +23,9 @@ class JobStatus(str, Enum):
 class VideoCreateRequest(BaseModel):
     image_paths: List[str]
     prompts: List[str]
-    audio_path: str
     resolution: Resolution = Resolution.HD_720P
-    background: str
+    model: str
+    
 
 class VideoCreateResponse(BaseModel):
     job_id: str
@@ -40,7 +40,7 @@ class JobStatusResponse(BaseModel):
     error_message: Optional[str] = None
     created_at: str
     completed_at: Optional[str] = None
-    list_scene: Optional[List[float]] = None 
+    list_img: Optional[List[str]] = None 
     queue_position: Optional[int] = None
     estimated_wait_time: Optional[int] = None
     is_processing: Optional[bool] = None

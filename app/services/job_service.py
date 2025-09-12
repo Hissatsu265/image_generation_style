@@ -191,7 +191,7 @@ class JobService:
     #     asyncio.create_task(self.start_cleanup_task())
         
     #     return job_id
-    async def create_job(self, image_paths: list, prompts: list, audio_path: str, resolution: str = "1920x1080", background: str | None = None) -> str:
+    async def create_job(self, image_paths: list, prompts: list,  model:str,resolution: str = "1920x1080") -> str:
         """Tạo job mới - LƯU VÀO MONGODB"""
         job_id = str(uuid.uuid4())
         
@@ -200,9 +200,8 @@ class JobService:
             "status": JobStatus.PENDING,
             "image_paths": image_paths,
             "prompts": prompts,
-            "audio_path": audio_path,
+            "model": model,
             "resolution": resolution,
-            "background": background,
             "progress": 0,
             "video_path": None,
             "error_message": None,
@@ -229,7 +228,7 @@ class JobService:
             await self.redis_client.set(
                 f"job:{job_id}", 
                 json.dumps(job_data, default=str),
-                ex=86400  # Expire after 24 hours
+                ex=86400  
             )
         except Exception as e:
             print(f"Error saving job to Redis: {e}")
@@ -364,21 +363,20 @@ class JobService:
                     
                     try:
                         print(f"Creating video for job: {job_id}")
-                        video_path, list_scene = await video_service.create_video(
+                        list_img = await video_service.create_video(
                             image_paths=job_data["image_paths"],
                             prompts=job_data["prompts"],
-                            audio_path=job_data["audio_path"],
+                            model=job_data["model"],
                             resolution=job_data["resolution"],
-                            job_id=job_id,
-                            background=job_data.get("background", None)
+                            job_id=job_id
                         )
-                        print("fsfssfsdfsfs: ", list_scene)
+                        # print("fsfssfsdfsfs: ", list_scene)
                         await self.update_job_status(
                             job_id, 
                             JobStatus.COMPLETED, 
                             progress=100,
-                            video_path=video_path,
-                            list_scene=list_scene
+                            # video_path=video_path,
+                            list_img=list_img
                         )
                         
                         print(f"Job completed: {job_id}")

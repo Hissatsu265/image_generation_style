@@ -1,7 +1,0 @@
-{
-    "prompt": "prompt 1",
-    "cond_image": "/workspace/multitalk_verquant/55c95f56_padder.jpg",
-    "cond_audio": {
-        "person1": "output_segments/german30s_add1_part_002_5.90s.mp3"
-    }
-}
