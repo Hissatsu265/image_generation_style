@@ -191,7 +191,7 @@ class JobService:
     #     asyncio.create_task(self.start_cleanup_task())
         
     #     return job_id
-    async def create_job(self, image_paths: list, prompts: list,  model:str,resolution: str = "1920x1080") -> str:
+    async def create_job(self, image_paths: list, prompts: list,  style:str,resolution: str = "1920x1080") -> str:
         """Tạo job mới - LƯU VÀO MONGODB"""
         job_id = str(uuid.uuid4())
         
@@ -200,7 +200,7 @@ class JobService:
             "status": JobStatus.PENDING,
             "image_paths": image_paths,
             "prompts": prompts,
-            "model": model,
+            "style": style,
             "resolution": resolution,
             "progress": 0,
             "video_path": None,
@@ -366,7 +366,7 @@ class JobService:
                         list_img = await video_service.create_video(
                             image_paths=job_data["image_paths"],
                             prompts=job_data["prompts"],
-                            model=job_data["model"],
+                            style=job_data["style"],
                             resolution=job_data["resolution"],
                             job_id=job_id
                         )

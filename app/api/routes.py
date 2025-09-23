@@ -83,33 +83,31 @@ router = APIRouter(prefix="/api/v1", tags=["video"])
 #             detail=f"Failed to create job: {str(e)}"
 #         )
 # ===============================================================
-@router.post("/images/create", response_model=VideoCreateResponse)
+@router.post("/images_gen/create", response_model=VideoCreateResponse)
 async def create_video(request: VideoCreateRequest):
-    if len(request.image_paths) != len(request.prompts):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Number of images must match number of prompts"
-        )
+    # if len(request.image_paths) != len(request.prompts):
+    request.image_paths=["hehe"]
 
-    try:
-        request.image_paths = [
-            download_image(img_url) for img_url in request.image_paths
-        ]
-        # request.audio_path = download_audio(request.audio_path)
-        print("Downloaded images:", request.image_paths)
-        # print("s====================s")
-        # print("Downloaded audio:", request.audio_path)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to download files: {str(e)}"
-        )
+    # try:
+    #     request.image_paths = [
+    #         download_image(img_url) for img_url in request.image_paths
+    #     ]
+    #     # request.audio_path = download_audio(request.audio_path)
+    #     print("Downloaded images:", request.image_paths)
+    #     # print("s====================s")
+    #     # print("Downloaded audio:", request.audio_path)
+    # except Exception as e:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail=f"Failed to download files: {str(e)}"
+    #     )
+
 
     try:
         job_id = await job_service.create_job(
             image_paths=request.image_paths,
             prompts=request.prompts,
-            model=request.model,
+            style=request.style,
             resolution=request.resolution  
         )
 

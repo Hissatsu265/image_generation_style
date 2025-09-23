@@ -14,6 +14,9 @@ class Resolution(str, Enum):
     VERTICAL_480 = "854x480"
     HORIZONTAL_720="720x1280"
     VERTICAL_720 = "1280x720"
+    RATIO1_1="1:1"
+    RATIO16_9="16:9"
+    RATIO9_16="9:16"
 class JobStatus(str, Enum):
     PENDING = "pending"
     PROCESSING = "processing"
@@ -21,10 +24,10 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 class VideoCreateRequest(BaseModel):
-    image_paths: List[str]
+    image_paths: List[str]=None
     prompts: List[str]
     resolution: Resolution = Resolution.HD_720P
-    model: str
+    style: str
     
 
 class VideoCreateResponse(BaseModel):

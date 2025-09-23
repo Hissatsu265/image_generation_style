@@ -28,23 +28,25 @@ class VideoService:
         timestamp = int(asyncio.get_event_loop().time())
         return unique_id, f"video_{timestamp}_{unique_id}_1.png",f"video_{timestamp}_{unique_id}_2.png"
 
-    async def create_video(self, image_paths: List[str], prompts: List[str], model: str, resolution: str, job_id: str) -> str:
+    async def create_video(self, image_paths: List[str], prompts: List[str], style: str, resolution: str, job_id: str) -> str:
         jobid, output_filename1,output_filename2 = self.generate_output_filename()
         # output_path1 = self.output_dir / output_filename1
         # output_path2 = self.output_dir / output_filename2
         # print("===============================")
         # print("hi: ",output_path1)
         # print("hi: ",output_path2)
-        # print("promtp",prompts)
-        # print("image_paths",image_paths)
-        # print("model",model)
-        # print("===============================")
+        print("=============================================")
+        print("promtp",prompts)
+        print("image_paths",image_paths)
+        print("style",style)
+        print("resolution",resolution)
+        print("===============================")
 
         try:
             from app.services.job_service import job_service
             await job_service.update_job_status(job_id, "processing", progress=99)
-            print("60")
-            img = await run_job(jobid, prompts, image_paths, resolution,model)   
+            # print("60")
+            img = await run_job(jobid, prompts, image_paths, resolution,style)   
             # for path in img:
             #     print(path,"=====heh")
             # print("61")
@@ -74,12 +76,12 @@ class VideoService:
             # if output_path1.exists():
             #     output_path1.unlink()
             raise e
-async def run_job(job_id, prompts, cond_images,resolution,model):
+async def run_job(job_id, prompts, cond_images,resolution,style):
     current_value=0
     img=await generate_video_cmd(
                 prompt=prompts[current_value],
                 cond_image=cond_images[current_value], 
-                model=model, 
+                style=style, 
                 job_id=job_id,
                 resolution=resolution
             )
@@ -256,7 +258,10 @@ async def wait_for_completion_fallback(prompt_id):
 #     # Chạy trong executor
 #     loop = asyncio.get_event_loop()
 #     return await loop.run_in_executor(None, _find_files)
+# ============================================================
 async def find_images_by_id(image_id, output_dir=str(BASE_DIR / "ComfyUI/output")):
+# async def find_images_by_id(image_id, output_dir="/home/toan/image_gen/ComfyUI/output"):
+    # output_dir="/home/toan/image_gen/ComfyUI/output"
     def _find_files():
         target_dir = os.path.join(output_dir, str(image_id))
         if not os.path.exists(target_dir):
@@ -276,56 +281,61 @@ async def find_images_by_id(image_id, output_dir=str(BASE_DIR / "ComfyUI/output"
     return await loop.run_in_executor(None, _find_files)
 
 # ========== Hàm chính được cập nhật ==========
-async def generate_video_cmd(prompt, cond_image, model, job_id,resolution):
+async def generate_video_cmd(prompt, cond_image, style, job_id,resolution):
     comfy_process = await start_comfyui()
     await asyncio.sleep(10)  
     try:
+
         print("🔄 Đang load workflow...")
         workflow = await load_workflow(str(BASE_DIR) + "/" + WORKFLOW_INFINITETALK_PATH)
-        # ============================================================
-        # await crop_green_background(cond_image, str(cond_image.replace(".png", "_crop.png")))
-        workflow["41"]["inputs"]["image"] = cond_image
-        # =============================================================
-        print("289")
-        if prompt.strip() == "" or prompt is None or prompt == "none":
-            workflow["6"]["inputs"]["text"] = "A hyper-realistic high-quality photo where the person in the original image is naturally interacting with the product placed in the scene. The person is realistically holding, touching, or standing next to the object with a natural posture and hand placement. The product looks proportional, seamlessly integrated into the scene, with correct perspective, lighting, reflections, and shadows matching the environment. The person’s appearance, expression, clothing, and background remain unchanged. The overall photo looks natural, authentic, and photorealistic, suitable for professional commercial advertising."    
-        else:
-            workflow["6"]["inputs"]["text"] = prompt            
-        wf_h=448
-        wf_w=448
-        print(resolution,"=====================")
-        if resolution == "1080x1920":
-            wf_w = 1080
-            wf_h = 1920
-        elif resolution=="1920x1080":
-            wf_w = 1920
-            wf_h = 1080
-        elif resolution=="720x1280":
+
+        style_prefix = {
+            "realistic": (
+                "A highly detailed, ultra-realistic, high-resolution photograph of "
+            ),
+            "anime": (
+                "An expressive, vibrant anime-style illustration of "
+            ),
+            "cartoon": (
+                "A bold, colorful, exaggerated cartoon drawing of "
+            ),
+            "vintage": (
+                "A nostalgic, retro, vintage-style photograph with warm tones of "
+            ),
+            "minimal": (
+                "A clean, simple, minimalistic flat design of "
+            ),
+            "artistic": (
+                "An imaginative, creative, artistic painting with unique textures of "
+            )
+        }
+        rule = style_prefix.get(style, "")
+        workflow["6"]["inputs"]["text"] = rule + prompt
+        print(rule + prompt[0])
+
+        wf_h=1024
+        wf_w=1024
+        if resolution == "1:1":
+            wf_w = 1024
+            wf_h = 1024
+        elif resolution=="16:9":
+            wf_w = 1280
+            wf_h = 720
+        elif resolution=="9:16":
             wf_w = 720
             wf_h = 1280
-        elif resolution=="480x854": 
-            wf_w = 480
-            wf_h = 854
-        elif resolution=="854x480": 
-            wf_w = 854
-            wf_h = 480
-        elif resolution=="1280x720":    
-            wf_w = 1280
-            wf_h = 720 
         
-        workflow["79"]["inputs"]["value"] = wf_w
-        workflow["83"]["inputs"]["value"] = wf_h
-        modelfp8 = "flux1-kontext-dev-fp8.safetensors"
-        if model=="fp8":
-            workflow["12"]["inputs"]["unet_name"] = modelfp8
+        workflow["162"]["inputs"]["width"] = wf_w
+        workflow["162"]["inputs"]["height"] = wf_h
+        
 
 # ===========================================================
         prefix = job_id+"/"+job_id
-        workflow["9"]["inputs"]["filename_prefix"] = prefix
+        workflow["171"]["inputs"]["filename_prefix"] = prefix
         print("📤 Đang gửi workflow đến ComfyUI...")
         resp = await queue_prompt(workflow)
 
-        print("resp",resp)
+        # print("resp",resp)
         prompt_id = resp["prompt_id"]
         client_id = resp["client_id"]
         print(f"✅ Đã gửi workflow! Prompt ID: {prompt_id}")
@@ -337,10 +347,10 @@ async def generate_video_cmd(prompt, cond_image, model, job_id,resolution):
 
         print("🔍 Đang tìm image đã tạo...")
         img = await find_images_by_id(job_id)
-        # print("Succes",img)
         return img
     finally:
         await stop_comfyui(comfy_process)
+        print("done")
 
 async def move_file_async(src_path, dst_path):
     def move_file():
