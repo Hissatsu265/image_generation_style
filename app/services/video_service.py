@@ -85,10 +85,10 @@ async def run_job(job_id, prompts, cond_images,resolution,style):
                 job_id=job_id,
                 resolution=resolution
             )
-    try:
-        os.remove(cond_images[current_value])
-    except Exception as e:
-        print(f"❌ Error removing temporary files: {str(e)}")
+    # try:
+    #     os.remove(cond_images[current_value])
+    # except Exception as e:
+    #     print(f"❌ Error removing temporary files: {str(e)}")
     return  img
 
 
@@ -282,8 +282,8 @@ async def find_images_by_id(image_id, output_dir=str(BASE_DIR / "ComfyUI/output"
 
 # ========== Hàm chính được cập nhật ==========
 async def generate_video_cmd(prompt, cond_image, style, job_id,resolution):
-    comfy_process = await start_comfyui()
-    await asyncio.sleep(10)  
+    # comfy_process = await start_comfyui()
+    # await asyncio.sleep(10)  
     try:
 
         print("🔄 Đang load workflow...")
@@ -349,7 +349,7 @@ async def generate_video_cmd(prompt, cond_image, style, job_id,resolution):
         img = await find_images_by_id(job_id)
         return img
     finally:
-        await stop_comfyui(comfy_process)
+        # await stop_comfyui(comfy_process)
         print("done")
 
 async def move_file_async(src_path, dst_path):
