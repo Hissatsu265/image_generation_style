@@ -1,9 +1,8 @@
-# Marketing Video AI - API Testing Guide
+# Create multi-style images - API Testing Guide
 
-This guide provides step-by-step instructions for setting up and testing the Marketing Video AI API.
+This guide provides step-by-step instructions for setting up and testing the Marketing Video AI API with multiple image generation styles.
 
 ## Prerequisites
-
 - Python 3.8+
 - CUDA-compatible GPU (recommended)
 - Git
@@ -11,15 +10,12 @@ This guide provides step-by-step instructions for setting up and testing the Mar
 ## Installation
 
 ### 1. Clone the Repository
-
 ```bash
-git clone https://github.com/shohanursobuj/marketing-video-ai.git
-cd marketing-video-ai
-git checkout MinhToan1
+git clone https://github.com/Hissatsu265/image_generation_style.git
+cd image_generation_style
 ```
 
 ### 2. Install Dependencies
-
 Execute the following commands in order:
 
 ```bash
@@ -70,169 +66,185 @@ pip install redis
 
 ## Running the Server
 
-To start the API server, simply run:
+The application requires two servers to be running simultaneously:
 
+### Step 1: Start ComfyUI Server
+```bash
+cd ComfyUI
+python main.py
+```
+Keep this terminal running. ComfyUI will start on its default port.
+
+### Step 2: Start Main API Server
+Open a new terminal and run:
 ```bash
 python run.py
 ```
+The main API server will start on `http://localhost:8000`
 
-The server will start on `http://localhost:8000`
+## API Usage
 
-## API Endpoints
+### Image Generation Endpoint
 
-### 1. Create Video
+**Endpoint:** `POST /api/v1/images_gen/create`
 
-Creates a new video from images and audio.
-
-**Endpoint:** `POST /api/v1/videos/create`
-
-**Request Structure:**
+**Request Format:**
 ```bash
-curl -X POST "http://localhost:8000/api/v1/videos/create" \
+curl -X POST "http://localhost:8000/api/v1/images_gen/create" \
   -H "Content-Type: application/json" \
   -d '{
-    "image_paths": ["/home/toan/marketing-video-ai/assets/justin-bieber-cái.JPG","/home/toan/marketing-video-ai/assets/justin-bieber-cái.JPG"],
-    "prompts": ["",""],
-    "audio_path": "/home/toan/marketing-video-ai/audio/oskar_1s.wav",
-    "resolution": "1280x720"
+    "prompts": ["a cat and a dog"],
+    "style": "realistic",
+    "resolution": "16:9"
   }'
 ```
 
-**Parameters:**
-- `image_paths`: Array of image file paths
-- `prompts`: Array of prompts (can be empty strings)
-- `audio_path`: Path to audio file
-- `resolution`: Video resolution (see supported resolutions below)
+### Available Parameters
 
-**Supported Resolutions:**
-- `1280x720` (HD)
-- `854x480` (SD)
-- `720x1280` (Vertical HD)
-- `480x854` (Vertical SD)
-- And more...
+#### Styles (5 options):
+- `realistic` - Photorealistic style
+- `anime` - Japanese animation style  
+- `cartoon` - Western cartoon style
+- `vintage` - Retro/vintage aesthetic
+- `minimal` - Minimalist design
+- `artistic` - Creative artistic interpretation
 
-**Response:**
-Returns a job ID for tracking the video creation progress.
+#### Resolutions (3 options):
+- `16:9` - Landscape format (1920x1080)
+- `9:16` - Portrait format (1080x1920)  
+- `1:1` - Square format (1080x1080)
 
-### 2. Check Job Status
+### Job Status Tracking
 
-Check the status of a video creation job.
+After submitting an image generation request, you'll receive a job ID. Use this ID to check the status:
 
-**Endpoint:** `GET /api/v1/jobs/{job_id}/status`
-
-**Request Structure:**
 ```bash
 curl "http://localhost:8000/api/v1/jobs/<job_id>/status"
 ```
 
-Replace `<job_id>` with the actual job ID returned from the create video endpoint.
+Replace `<job_id>` with the actual ID returned from the creation request.
 
-### 3. Add Video Effects
+### Response Examples
 
-Apply transition and dolly effects to an existing video.
-
-**Endpoint:** `POST /api/v1/videos/effects`
-
-**Request Structure:**
-```bash
-curl -X POST "http://localhost:8000/api/v1/videos/effects" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "video_path": "/root/marketing-video-ai/55c95f56_clip_0_cut_11.49s.mp4",
-    "transition_times": [2.5, 5.0],
-    "transition_effects": ["slide", "fade_in"],
-    "transition_durations": [0.5, 1.0],
-    "dolly_effects": [
-      {
-        "scene_index": 0,
-        "start_time": 1.5,
-        "duration": 1.0,
-        "zoom_percent": 50,
-        "effect_type": "auto_zoom",
-        "end_time": 5.0
-      },
-      {
-        "scene_index": 1,
-        "start_time": 3.0,
-        "duration": 1.5,
-        "zoom_percent": 50,
-        "effect_type": "manual_zoom",
-        "x_coordinate": 100,
-        "y_coordinate": 100,
-        "end_time": 6.0,
-        "end_type": "smooth"
-      }
-    ]
-  }'
+**Creation Response:**
+```json
+{
+  "job_id": "abc123def456",
+  "status": "queued",
+  "message": "Job created successfully"
+}
 ```
 
-**Parameters:**
+**Status Check Response:**
+```json
+{
+  "job_id": "abc123def456",
+  "status": "completed",
+  "progress": 100,
+  "result": {
+    "images": [
+      "http://localhost:8000/static/images/generated_image_1.png"
+    ]
+  }
+}
+```
 
-#### Transition Effects
-- `transition_times`: Array of times when transitions occur
-- `transition_effects`: Array of transition effect names
-- `transition_durations`: Array of transition durations
-
-#### Dolly Effects
-- `scene_index`: Index of the scene to apply effect
-- `start_time`: When the effect starts
-- `duration`: Duration of the effect
-- `zoom_percent`: Zoom percentage
-- `effect_type`: Type of zoom effect (`auto_zoom` or `manual_zoom`)
-- `end_time`: When the effect ends
-- `x_coordinate`, `y_coordinate`: Target coordinates (for manual zoom)
-- `end_type`: End transition type (`instant` or `smooth`)
-
-## Available Transition Effects
-
-The following transition effects are supported:
-
-- `slide` - Slide transition
-- `rotate` - Rotation effect
-- `circle_mask` - Circular mask transition
-- `fade_in` - Fade in effect
-- `fade_out` - Fade out effect
-- `fadeout_fadein` - Combined fade out and fade in
-- `crossfade` - Cross fade between scenes
-- `rgb_split` - RGB color split effect
-- `flip_horizontal` - Horizontal flip
-- `flip_vertical` - Vertical flip
-- `push_blur` - Push with blur effect
-- `squeeze_horizontal` - Horizontal squeeze
-- `wave_distortion` - Wave distortion effect
-- `zoom_blur` - Zoom with blur
-- `spiral` - Spiral transition
-- `pixelate` - Pixelation effect
-- `shatter` - Shatter effect
-- `kaleidoscope` - Kaleidoscope effect
-- `page_turn` - Page turning effect
-- `television` - TV static effect
-- `film_burn` - Film burn effect
-- `matrix_rain` - Matrix rain effect
-- `old_film` - Old film effect
-- `mosaic_blur` - Mosaic blur effect
-- `lens_flare` - Lens flare effect
-- `digital_glitch` - Digital glitch effect
-- `waterfall` - Waterfall effect
-- `honeycomb` - Honeycomb pattern effect
-- `none` - No transition effect
-
-## End Types
-
-For dolly effects, the following end types are available:
-- `instant` - Immediate transition
-- `smooth` - Gradual transition
+**Status Options:**
+- `queued` - Job is waiting in queue
+- `processing` - Image is being generated
+- `completed` - Generation finished successfully
+- `failed` - Generation failed with error
 
 ## Troubleshooting
 
-1. **CUDA Issues**: Ensure you have a CUDA-compatible GPU and the correct CUDA version installed
-2. **Memory Issues**: Close other applications if you encounter out-of-memory errors
-3. **File Paths**: Use absolute paths for image and audio files
-4. **Dependencies**: If you encounter import errors, try reinstalling the specific package
+### Common Issues
 
-## Notes
+#### Missing Custom Node Dependencies
+If you encounter errors during API testing, it's likely due to missing libraries for custom nodes:
 
-- Make sure all file paths in your requests point to existing files
-- The server needs to be running before making API calls
-- Video processing may take some time depending on the complexity and your hardware
-- Monitor the job status endpoint to track progress
+1. Navigate to the custom nodes directory:
+   ```bash
+   cd ComfyUI/custom_nodes/
+   ```
+
+2. Install requirements for each node:
+   ```bash
+   # For each custom node folder, run:
+   pip install -r <node_folder>/requirements.txt
+   ```
+
+3. Alternatively, install all requirements at once:
+   ```bash
+   find ComfyUI/custom_nodes/ -name "requirements.txt" -exec pip install -r {} \;
+   ```
+
+#### Server Connection Issues
+- Ensure both ComfyUI and the main API server are running
+- Check that ports are not blocked by firewall
+- Verify CUDA installation if using GPU acceleration
+
+#### Memory Issues
+- Reduce batch size in requests
+- Close unnecessary applications
+- Consider using CPU mode if GPU memory is insufficient
+
+## Example Usage Scripts
+
+### Python Example
+```python
+import requests
+import time
+
+# Create image generation job
+response = requests.post(
+    "http://localhost:8000/api/v1/images_gen/create",
+    json={
+        "prompts": ["a beautiful sunset over mountains"],
+        "style": "artistic",
+        "resolution": "16:9"
+    }
+)
+
+job_data = response.json()
+job_id = job_data["job_id"]
+
+# Poll for completion
+while True:
+    status_response = requests.get(f"http://localhost:8000/api/v1/jobs/{job_id}/status")
+    status_data = status_response.json()
+    
+    print(f"Status: {status_data['status']}")
+    
+    if status_data["status"] == "completed":
+        print(f"Images: {status_data['result']['images']}")
+        break
+    elif status_data["status"] == "failed":
+        print(f"Error: {status_data.get('error', 'Unknown error')}")
+        break
+    
+    time.sleep(2)
+```
+
+### Multiple Styles Example
+```bash
+# Generate the same prompt in different styles
+curl -X POST "http://localhost:8000/api/v1/images_gen/create" -H "Content-Type: application/json" -d '{"prompts": ["a majestic dragon"], "style": "realistic", "resolution": "16:9"}'
+
+curl -X POST "http://localhost:8000/api/v1/images_gen/create" -H "Content-Type: application/json" -d '{"prompts": ["a majestic dragon"], "style": "anime", "resolution": "16:9"}'
+
+curl -X POST "http://localhost:8000/api/v1/images_gen/create" -H "Content-Type: application/json" -d '{"prompts": ["a majestic dragon"], "style": "cartoon", "resolution": "16:9"}'
+```
+
+## API Documentation
+
+Once the server is running, you can access the interactive API documentation at:
+- **Swagger UI:** `http://localhost:8000/docs`
+- **ReDoc:** `http://localhost:8000/redoc`
+
+## Support
+
+For issues and questions:
+1. Check the troubleshooting section above
+2. Review ComfyUI logs for detailed error messages
+3. Ensure all dependencies are correctly installed
+4. Verify GPU drivers and CUDA installation
