@@ -126,6 +126,7 @@ curl -X POST "http://localhost:8000/api/v1/images_gen/create" \
 - `vintage` - Retro/vintage aesthetic
 - `minimal` - Minimalist design
 - `artistic` - Creative artistic interpretation
+- `cyberpunk` - Cyberpunk style
 
 #### Resolutions (3 options):
 - `16:9` - Landscape format (1920x1080)
