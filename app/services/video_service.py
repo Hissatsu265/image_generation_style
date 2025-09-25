@@ -307,8 +307,12 @@ async def generate_video_cmd(prompt, cond_image, style, job_id,resolution):
             ),
             "artistic": (
                 "An imaginative, creative, artistic painting with unique textures of "
+            ),
+            "cyberpunk": (
+                "A futuristic, neon-lit, cyberpunk-style scene with high-tech elements of "
             )
         }
+
         rule = style_prefix.get(style, "")
         workflow["6"]["inputs"]["text"] = rule + prompt
         print(rule + prompt[0])
