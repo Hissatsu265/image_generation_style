@@ -6,6 +6,24 @@ This guide provides step-by-step instructions for setting up and testing the Mar
 - Python 3.8+
 - CUDA-compatible GPU (recommended)
 - Git
+## How to Download Required Models
+
+To use this project properly, please download the following model files and place them into the specified folders.
+
+1. **T5 XXL Text Encoder**  
+Download from: [T5-v1_1-XXL Encoder](https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/resolve/main/t5-v1_1-xxl-encoder-Q8_0.gguf)  
+Place it in:  image_generation_style/ComfyUI/models/text_encoders/
+2. **FLUX.1 Krea-dev Diffusion Model**  
+Download from: [FLUX.1-Krea-dev GGUF](https://huggingface.co/QuantStack/FLUX.1-Krea-dev-GGUF/resolve/main/flux1-krea-dev-Q8_0.gguf)  
+Place it in:  image_generation_style/ComfyUI/models/diffusion_models/
+3. **FLUX.1 VAE**  
+Download from: [FLUX.1-dev VAE](https://huggingface.co/frankjoshua/FLUX.1-dev/resolve/main/ae.safetensors)  
+Place it in:  image_generation_style/ComfyUI/models/vae/
+
+4. **Clip L Text Encoder**  
+Download from: [Clip L](https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors)  
+Place it in:  image_generation_style/ComfyUI/models/text_encoders/
+
 
 ## Installation
 
